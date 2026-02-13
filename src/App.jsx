@@ -24,29 +24,53 @@ const CONSTANTS = {
 
 const PALETTE = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 
+// --- DATA MAPS & UTILS ---
 const digitize = (value) => {
   if (value === null) return [null];
   if (value === " ") return [" "]; 
+  if (["row:", "col:", "Layer"].includes(value)) return [value];
   if (typeof value === 'number') return value.toString().split('');
   return [value.toString()];
 };
 
+
 // --- MATH LOGIC ---
+
 const getSquareShellData = (n) => {
   if (n <= 0) return [0];
   if (n === 1) return [1];
+  
   let k = Math.floor(Math.sqrt(n - 1));
   let offset = n - (k * k);
-  let sPos = (offset <= k + 1) ? { x: k, y: offset - 1 } : { x: k - (offset - (k + 1)), y: k };
+  let sPos = (offset <= k + 1) 
+    ? { x: k, y: offset - 1 } 
+    : { x: k - (offset - (k + 1)), y: k };
+
   const R = Math.floor(sPos.y) + 1;
   const C = Math.floor(sPos.x) + 1;
-  const spacers = Array(R.toString().length + C.toString().length + 2).fill(" ");
+  const prod = R * C;
+  const sum = R + C;
+
+  // --- ALIGNMENT LOGIC ---
+  const rCells = R.toString().length;
+  const cCells = C.toString().length;
+  const symbols = 2; // The operator (+ or ×) and the "=" sign
+  
+  const totalPrefixCells = rCells + cCells + symbols;
+  
+  // Create an array of hidden spacer cells
+  // Inside getSquareShellData:
+  const op = "×"; // or "+"
+  const eq = "=";
+  const spacers = [...Array(R.toString().length).fill(" "), op, ...Array(C.toString().length).fill(" "), eq];
+
   const lines = [
     [n, "=", k, "×", k, "+", offset, "row:", R, "col:", C],
-    [R, "×", C, "=", R * C],
-    [R, "+", C, "=", R + C],
-    [...spacers, (R * C) + (R + C)] 
+    [R, "×", C, "=", prod],
+    [R, "+", C, "=", sum],
+    [...spacers, prod + sum] 
   ];
+
   return lines.flatMap(line => [...line.flatMap(digitize), null]);
 };
 
@@ -60,51 +84,119 @@ const getHexagonData = (N) => {
 };
 
 // --- SUB-COMPONENT: SINGLE GRID ---
-const GridDisplay = ({ data, persistentSelection, setPersistentSelection, activeColor, isDragging, setIsDragging, SYMBOLS }) => {
-  const rows = useMemo(() => data.reduce((acc, curr, i) => {
-    if (curr === null) acc.push([]);
-    else acc[acc.length - 1].push({ token: curr, index: i });
-    return acc;
-  }, [[]]), [data]);
+const GridDisplay = ({ gridType, wordVal, selections, setSelections, activeColor, isDragging, setIsDragging, binaryMaps, setBinaryMaps, SYMBOLS }) => {
+  const baseTokens = useMemo(() => 
+    gridType === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal)
+  , [gridType, wordVal]);
 
-  const handleInteraction = (index, token, isDragAction) => {
-    if (SYMBOLS.includes(token)) return;
-    setPersistentSelection(prev => {
-      const newMap = { ...prev };
-      if (isDragAction) {
-        newMap[index] = activeColor;
+  const expandedData = useMemo(() => {
+    let result = [];
+    baseTokens.forEach((token, baseIdx) => {
+      if (token === null) {
+        result.push({ token: null, baseIdx });
+      } else if (SYMBOLS.includes(token)) {
+        // Labels/Symbols stay as single units
+        result.push({ token: token, baseIdx, subIdx: 0, isSymbol: true });
+      } else if (binaryMaps[baseIdx] && !isNaN(token) && token !== " ") {
+        const binStr = parseInt(token).toString(2);
+        binStr.split('').forEach((bit, bIdx) => {
+          // Stable key: base index + bit position
+          result.push({ token: bit, baseIdx, subIdx: bIdx, isBinary: true });
+        });
       } else {
-        newMap[index] === activeColor ? delete newMap[index] : (newMap[index] = activeColor);
+        token.toString().split('').forEach((digit, dIdx) => {
+          // Stable key: base index + digit position
+          result.push({ token: digit, baseIdx, subIdx: dIdx, isBinary: false });
+        });
       }
+    });
+    return result;
+  }, [baseTokens, binaryMaps, SYMBOLS]);
+
+  const rows = useMemo(() => {
+    return expandedData.reduce((acc, curr, i) => {
+      if (curr.token === null) acc.push([]);
+      else acc[acc.length - 1].push({ ...curr });
+      return acc;
+    }, [[]]);
+  }, [expandedData]);
+
+  const handleInteraction = (item) => {
+    if (SYMBOLS.includes(item.token) || item.isSymbol) return;
+    
+    // Toggling BIN/DEC mode
+    if (activeColor === 'BIN') {
+      setBinaryMaps(prev => ({ ...prev, [item.baseIdx]: true }));
+      return;
+    }
+    if (activeColor === 'DEC') {
+      setBinaryMaps(prev => ({ ...prev, [item.baseIdx]: false }));
+      return;
+    }
+
+    // Creating a stable key for the selection map
+    const selectionKey = `${item.baseIdx}-${item.subIdx}`;
+
+    setSelections(prev => {
+      const newMap = { ...prev };
+      const currentGridSelection = { ...(newMap[gridType] || {}) };
+      
+      if (currentGridSelection[selectionKey] === activeColor) {
+        delete currentGridSelection[selectionKey];
+      } else {
+        currentGridSelection[selectionKey] = activeColor;
+      }
+      
+      newMap[gridType] = currentGridSelection;
       return newMap;
     });
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
-      {rows.map((row, rIdx) => (
-        <div key={rIdx} style={{ display: 'flex', gap: '5px' }}>
-          {row.map(({ token, index }) => {
-            const isSymbol = SYMBOLS.includes(token);
-            const highlight = persistentSelection[index];
-            return (
-              <div
-                key={index}
-                onMouseDown={() => { if(!isSymbol) { setIsDragging(true); handleInteraction(index, token, false); } }}
-                onMouseEnter={() => { if(isDragging && !isSymbol) handleInteraction(index, token, true); }}
-                style={{
-                  width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: highlight || (isSymbol ? 'transparent' : '#2a2a2a'),
-                  borderRadius: '4px', fontSize: '1.1rem', fontWeight: 'bold', color: isSymbol ? '#555' : 'white',
-                  cursor: isSymbol ? 'default' : 'pointer', userSelect: 'none', transition: '0.1s'
-                }}
-              >
-                {token}
-              </div>
-            );
-          })}
-        </div>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
+      {rows.map((row, rIdx) => {
+        const isLastRow = rIdx === 3; 
+        return (
+          <div key={rIdx} style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+            {row.map((item, i) => {
+              const isSpacerString = item.token === " ";
+              const isSymbolToken = SYMBOLS.includes(item.token) || item.isSymbol;
+              const shouldHide = isSpacerString || (isLastRow && isSymbolToken);
+              const isSymStyle = isSymbolToken && !isSpacerString;
+              
+              const selectionKey = `${item.baseIdx}-${item.subIdx}`;
+              const highlight = (selections[gridType] || {})[selectionKey];
+
+              return (
+                <div
+                  key={`${selectionKey}-${i}`}
+                  onMouseDown={() => { if(!isSymStyle && !shouldHide) { setIsDragging(true); handleInteraction(item); }}}
+                  onMouseEnter={() => { if (isDragging && !isSymStyle && !shouldHide) handleInteraction(item); }}
+                  style={{
+                    minWidth: isSymStyle ? 'auto' : '32px',
+                    height: '32px',
+                    padding: isSymStyle ? '0 8px' : '0',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    backgroundColor: highlight || (isSymStyle || shouldHide ? 'transparent' : '#2a2a2a'),
+                    borderRadius: item.isBinary ? '50%' : '4px',
+                    fontSize: isSymStyle ? '0.85rem' : (item.isBinary ? '0.9rem' : '1.1rem'),
+                    fontWeight: 'bold', 
+                    color: isSymStyle ? '#555' : 'white',
+                    cursor: (isSymStyle || shouldHide) ? 'default' : 'pointer', 
+                    userSelect: 'none', 
+                    border: item.isBinary ? '1px solid rgba(255,255,255,0.2)' : 'none',
+                    visibility: shouldHide ? 'hidden' : 'visible'
+                  }}
+                >
+                  {item.token}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -112,168 +204,163 @@ const GridDisplay = ({ data, persistentSelection, setPersistentSelection, active
 // --- GAME COMPONENT ---
 const GameComponent = ({ settings }) => {
   const [selections, setSelections] = useState({});
+  const [binaryMaps, setBinaryMaps] = useState({}); 
   const [activeColor, setActiveColor] = useState(PALETTE[0]);
   const [isDragging, setIsDragging] = useState(false);
   
   const SYMBOLS = ["=", "×", "+", "row:", "col:", "⬡", "Layer", " "];
   const wordVal = ZODIAC_MAPS[settings.language][settings.word];
 
-  // 1. Logic to calculate all matches in real-time
+  // --- UPDATED MATCH LOGIC INSIDE GameComponent ---
   const matchResults = useMemo(() => {
-    let userDigits = "";
+    const colorDigitMap = {};
+    PALETTE.forEach(c => colorDigitMap[c] = []);
+
     settings.gridTypes.forEach(type => {
-      const data = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
+      const baseData = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
       const gridSelections = selections[type] || {};
-      data.forEach((token, idx) => {
-        if (token !== null && !SYMBOLS.includes(token) && gridSelections[idx]) {
-          userDigits += token.toString();
-        }
+      
+      baseData.forEach((token, baseIdx) => {
+        if (token === null || SYMBOLS.includes(token)) return;
+
+        const isBin = binaryMaps[baseIdx];
+        const chars = isBin ? parseInt(token).toString(2).split('') : token.toString().split('');
+        
+        chars.forEach((char, subIdx) => {
+          const selectionKey = `${baseIdx}-${subIdx}`;
+          const color = gridSelections[selectionKey];
+          if (color && PALETTE.includes(color)) {
+            colorDigitMap[color].push(char);
+          }
+        });
       });
     });
 
-    const results = [];
-    Object.entries(CONSTANTS).forEach(([category, group]) => {
-      Object.entries(group).forEach(([symbol, value]) => {
-        const constStr = value.toString().replace(/[^0-9]/g, '');
-        if (userDigits.length === 0) {
-          results.push({ symbol, value, percent: 0, category });
-          return;
-        }
+    return Object.entries(CONSTANTS).flatMap(([category, group]) => 
+      Object.entries(group).map(([symbol, value]) => {
+        const targetDigits = value.toString().replace(/[^0-9]/g, '').split('');
+        let bestColor = null;
+        let maxPercent = 0;
 
-        let matchCount = 0;
-        const tempUser = userDigits.split('');
-        constStr.split('').forEach(char => {
-          const foundIdx = tempUser.indexOf(char);
-          if (foundIdx > -1) {
-            matchCount++;
-            tempUser.splice(foundIdx, 1);
+        PALETTE.forEach(color => {
+          const userBank = [...colorDigitMap[color]]; 
+          let matches = 0;
+          targetDigits.forEach(digit => {
+            const idx = userBank.indexOf(digit);
+            if (idx !== -1) {
+              matches++;
+              userBank.splice(idx, 1);
+            }
+          });
+          const percent = targetDigits.length > 0 ? (matches / targetDigits.length) * 100 : 0;
+          if (percent > maxPercent) {
+            maxPercent = percent;
+            bestColor = color;
           }
         });
 
-        results.push({ 
-          symbol, 
-          value, 
-          percent: (matchCount / constStr.length) * 100, 
-          category 
-        });
-      });
-    });
+        return { symbol, value, percent: maxPercent, dominantColor: bestColor || '#333', category };
+      })
+    ).sort((a, b) => b.percent - a.percent);
+  }, [selections, binaryMaps, settings.gridTypes, wordVal]);
 
-    return results.sort((a, b) => b.percent - a.percent);
-  }, [selections, settings.gridTypes, wordVal]);
-
-  // Calculate average match to drive the "Glimmer/Brighten" effect
   const avgMatch = matchResults.reduce((acc, curr) => acc + curr.percent, 0) / matchResults.length;
-  const brightness = 26 + (avgMatch * 0.4); // Base 26 (dark) up to ~66 (bright)
+  const brightness = 26 + (avgMatch * 0.4);
 
   return (
-    <div style={{ 
-      display: 'flex', flexDirection: 'row', 
-      padding: '40px', fontFamily: 'monospace', color: 'white', 
-      backgroundColor: '#1a1a1a', minHeight: '100vh', gap: '20px'
-    }} onMouseUp={() => setIsDragging(false)}>
-      
-      {/* LEFT: GRID SECTION */}
-      <div style={{ flex: 1, maxWidth: '650px' }}>
-        <div style={{ marginBottom: '30px' }}>
-          <h2 style={{ margin: 0, letterSpacing: '1px' }}>{settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})</h2>
-          <p style={{ color: '#666' }}>Resonance frequency: n={wordVal}</p>
-        </div>
+    <div 
+      style={{ 
+        display: 'flex', 
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        padding: '60px 20px', 
+        fontFamily: 'monospace', 
+        color: 'white', 
+        backgroundColor: '#1a1a1a', 
+        minHeight: '100vh',
+        width: '100%'
+      }} 
+      onMouseUp={() => setIsDragging(false)}
+    >
+      {/* INNER WRAPPER: Holds both sections together for centering */}
+      <div style={{ display: 'flex', flexDirection: 'row', gap: '60px', alignItems: 'flex-start' }}>
+        
+        {/* LEFT: GRID SECTION */}
+        <div style={{ width: '600px' }}>
+          <div style={{ marginBottom: '40px' }}>
+            <h2 style={{ margin: 0, letterSpacing: '1px', fontSize: '2rem' }}>
+              {settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})
+            </h2>
+          </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '45px' }}>
-          {settings.gridTypes.map(type => (
-            <div key={type}>
-              <h5 style={{ color: '#444', marginBottom: '12px', fontSize: '0.75rem', letterSpacing: '2px' }}>{type.toUpperCase()}</h5>
-              <GridDisplay
-                data={type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal)}
-                persistentSelection={selections[type] || {}}
-                setPersistentSelection={(val) => setSelections(prev => ({ 
-                  ...prev, [type]: typeof val === 'function' ? val(prev[type] || {}) : val 
-                }))}
-                activeColor={activeColor}
-                isDragging={isDragging}
-                setIsDragging={setIsDragging}
-                SYMBOLS={SYMBOLS}
-              />
-            </div>
-          ))}
-        </div>
-
-        <div style={{ marginTop: '50px', display: 'flex', gap: '15px' }}>
-          <button onClick={() => setSelections({})} style={btnStyle}>Reset Sequence</button>
-          <button onClick={() => window.location.reload()} style={btnStyle}>Main Menu</button>
-        </div>
-      </div>
-
-      {/* RIGHT: CONSTANTS PANEL with Glimmer Effect */}
-      <div style={{ 
-        width: '400px', 
-        borderLeft: '1px solid #333', 
-        padding: '0 30px',
-        backgroundColor: `rgb(${brightness}, ${brightness + (avgMatch/4)}, ${brightness + (avgMatch/2)})`,
-        transition: 'background-color 0.5s ease',
-        overflowY: 'auto',
-        maxHeight: '90vh',
-        borderRadius: '12px',
-        boxShadow: avgMatch > 20 ? `0 0 ${avgMatch}px rgba(59, 130, 246, 0.2)` : 'none'
-      }}>
-        <div style={{ position: 'sticky', top: 0, paddingTop: '20px', backgroundColor: 'inherit', zIndex: 10 }}>
-          <div style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', marginBottom: '20px' }}>
-            {PALETTE.map(color => (
-              <div key={color} onClick={() => setActiveColor(color)} style={{ 
-                width: '24px', height: '24px', backgroundColor: color, borderRadius: '50%', cursor: 'pointer',
-                border: activeColor === color ? '2px solid white' : 'none' 
-              }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '50px' }}>
+            {settings.gridTypes.map(type => (
+              <div key={type}>
+                <h5 style={{ color: '#444', marginBottom: '15px', fontSize: '0.8rem', letterSpacing: '2px' }}>
+                  {type.toUpperCase()}
+                </h5>
+                <GridDisplay
+                  gridType={type}
+                  wordVal={wordVal}
+                  selections={selections}
+                  setSelections={setSelections}
+                  binaryMaps={binaryMaps}
+                  setBinaryMaps={setBinaryMaps}
+                  activeColor={activeColor}
+                  isDragging={isDragging}
+                  setIsDragging={setIsDragging}
+                  SYMBOLS={SYMBOLS}
+                />
+              </div>
             ))}
           </div>
-          <h4 style={{ color: '#888', fontSize: '0.8rem', margin: '10px 0' }}>CONSTANT ALIGNMENT</h4>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '20px' }}>
-          {matchResults.map((m, i) => (
-            <div key={i} style={{ 
-              padding: '15px', 
-              borderRadius: '8px', 
-              background: m.percent > 50 ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.03)',
-              border: m.percent > 50 ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.05)',
-              transition: 'all 0.3s ease',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              {/* Glimmer effect for high matches */}
-              {m.percent > 70 && (
-                <div style={{
-                  position: 'absolute', top: 0, left: '-100%', width: '100%', height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
-                  animation: 'glimmer 3s infinite'
-                }} />
-              )}
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: m.percent > 50 ? '#3b82f6' : 'white' }}>{m.symbol}</span>
-                <span style={{ fontSize: '0.85rem', color: m.percent > 0 ? (m.percent > 50 ? '#3b82f6' : '#aaa') : '#444' }}>
-                  {m.percent.toFixed(1)}%
-                </span>
+        {/* RIGHT: CONSTANTS PANEL */}
+        <div style={{ 
+          width: '420px', 
+          backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})`,
+          padding: '25px',
+          borderRadius: '16px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          position: 'sticky',
+          top: '40px'
+        }}>
+          <div style={{ display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '10px', marginBottom: '25px', alignItems: 'center', justifyContent: 'center' }}>
+            {PALETTE.map(color => (
+              <div key={color} onClick={() => setActiveColor(color)} style={{ width: '28px', height: '28px', backgroundColor: color, borderRadius: '50%', cursor: 'pointer', border: activeColor === color ? '2px solid white' : 'none', boxShadow: activeColor === color ? `0 0 10px ${color}` : 'none' }} />
+            ))}
+            <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 8px' }} />
+            <button onClick={() => setActiveColor('BIN')} style={{ ...toolBtn, backgroundColor: activeColor === 'BIN' ? '#00e5ff' : '#333' }}>BIN</button>
+            <button onClick={() => setActiveColor('DEC')} style={{ ...toolBtn, backgroundColor: activeColor === 'DEC' ? '#ff4081' : '#333' }}>DEC</button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {matchResults.map((m, i) => (
+              <div key={i} style={{ 
+                padding: '18px', 
+                borderRadius: '10px', 
+                background: m.percent > 0 ? `${m.dominantColor}22` : 'rgba(255,255,255,0.03)', 
+                border: m.percent > 0 ? `1px solid ${m.dominantColor}55` : '1px solid rgba(255,255,255,0.05)',
+                transition: '0.3s'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>{m.symbol}</span>
+                  <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>{m.percent.toFixed(1)}%</span>
+                </div>
+                <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', marginTop: '8px', wordBreak: 'break-all' }}>{m.value}</div>
               </div>
-              <div style={{ fontSize: '0.9rem', color: '#888', wordBreak: 'break-all' }}>{m.value}</div>
-              <div style={{ fontSize: '0.6rem', color: '#555', marginTop: '8px', textTransform: 'uppercase' }}>{m.category}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes glimmer {
-          0% { left: -100%; }
-          50% { left: 100%; }
-          100% { left: 100%; }
-        }
-      `}</style>
     </div>
   );
 };
 
-const btnStyle = { padding: '10px 20px', border: 'none', borderRadius: '4px', cursor: 'pointer', backgroundColor: '#444', color: 'white', fontWeight: 'bold' };
+const toolBtn = { border: 'none', borderRadius: '4px', color: 'white', cursor: 'pointer', fontWeight: 'bold', padding: '6px 10px', fontSize: '0.7rem' };
 
 // --- MAIN APP ---
 export default function App() {
@@ -295,13 +382,13 @@ export default function App() {
   if (step === 'TOPIC') return (
     <div style={menuStyle}>
       <h2>Topic</h2>
-      {["Chinese Zodiac", "Countries"].map(t => <button key={t} style={menuBtn} onClick={() => { setSettings({...settings, topic: t}); setStep('WORD'); }}>{t}</button>)}
+      {["Chinese Zodiac"].map(t => <button key={t} style={menuBtn} onClick={() => { setSettings({...settings, topic: t}); setStep('WORD'); }}>{t}</button>)}
     </div>
   );
 
   if (step === 'WORD') return (
     <div style={menuStyle}>
-      <h2>Select Word</h2>
+      <h2>Select Animal</h2>
       {["Rat", "Ox", "Tiger", "Rabbit", "Dragon", "Snake", "Horse", "Goat", "Monkey", "Rooster", "Dog", "Pig"].map(w => 
         <button key={w} style={menuBtn} onClick={() => { setSettings({...settings, word: w}); setStep('LANG'); }}>{w}</button>
       )}
@@ -317,7 +404,7 @@ export default function App() {
 
   if (step === 'GRID') return (
     <div style={menuStyle}>
-      <h2>Tessellation (Multi-Select)</h2>
+      <h2>Tessellation</h2>
       {["Square Shell", "Hexagon"].map(g => (
         <button key={g} 
           style={{...menuBtn, backgroundColor: settings.gridTypes.includes(g) ? '#3b82f6' : '#333'}} 
