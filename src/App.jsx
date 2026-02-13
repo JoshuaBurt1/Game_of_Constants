@@ -24,7 +24,6 @@ const CONSTANTS = {
 
 const PALETTE = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 
-// --- DATA MAPS & UTILS ---
 const digitize = (value) => {
   if (value === null) return [null];
   if (value === " ") return [" "]; 
@@ -33,44 +32,35 @@ const digitize = (value) => {
   return [value.toString()];
 };
 
-
-// --- MATH LOGIC ---
+const getPermutations = (str) => {
+  if (!str || str.length <= 1) return [str];
+  let perms = [];
+  for (let i = 0; i < str.length; i++) {
+    let char = str[i];
+    let remainingChars = str.slice(0, i) + str.slice(i + 1);
+    for (let p of getPermutations(remainingChars)) {
+      perms.push(char + p);
+    }
+  }
+  return Array.from(new Set(perms));
+};
 
 const getSquareShellData = (n) => {
   if (n <= 0) return [0];
   if (n === 1) return [1];
-  
   let k = Math.floor(Math.sqrt(n - 1));
   let offset = n - (k * k);
-  let sPos = (offset <= k + 1) 
-    ? { x: k, y: offset - 1 } 
-    : { x: k - (offset - (k + 1)), y: k };
-
-  const R = Math.floor(sPos.y) + 1;
-  const C = Math.floor(sPos.x) + 1;
+  const R = Math.floor((offset <= k + 1) ? k : k - (offset - (k + 1))) + 1;
+  const C = Math.floor((offset <= k + 1) ? offset - 1 : k) + 1;
   const prod = R * C;
   const sum = R + C;
-
-  // --- ALIGNMENT LOGIC ---
-  const rCells = R.toString().length;
-  const cCells = C.toString().length;
-  const symbols = 2; // The operator (+ or ×) and the "=" sign
-  
-  const totalPrefixCells = rCells + cCells + symbols;
-  
-  // Create an array of hidden spacer cells
-  // Inside getSquareShellData:
-  const op = "×"; // or "+"
-  const eq = "=";
-  const spacers = [...Array(R.toString().length).fill(" "), op, ...Array(C.toString().length).fill(" "), eq];
-
+  const spacers = [...Array(R.toString().length).fill(" "), "×", ...Array(C.toString().length).fill(" "), "="];
   const lines = [
     [n, "=", k, "×", k, "+", offset, "row:", R, "col:", C],
-    [R, "×", C, "=", prod],
-    [R, "+", C, "=", sum],
+    [C, "×", R, "=", prod],
+    [C, "+", R, "=", sum],
     [...spacers, prod + sum] 
   ];
-
   return lines.flatMap(line => [...line.flatMap(digitize), null]);
 };
 
@@ -84,37 +74,35 @@ const getHexagonData = (N) => {
 };
 
 // --- SUB-COMPONENT: SINGLE GRID ---
-const GridDisplay = ({ gridType, wordVal, selections, setSelections, activeColor, isDragging, setIsDragging, binaryMaps, setBinaryMaps, SYMBOLS }) => {
-  const baseTokens = useMemo(() => 
-    gridType === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal)
-  , [gridType, wordVal]);
-
+const GridDisplay = ({ gridType, tokens, selections, setSelections, activeColor, isDragging, setIsDragging, binaryMaps, setBinaryMaps, boxSelections, setBoxSelections, SYMBOLS }) => {
+  
   const expandedData = useMemo(() => {
     let result = [];
-    baseTokens.forEach((token, baseIdx) => {
+    if (!tokens) return [];
+    
+    tokens.forEach((token, baseIdx) => {
+      const binaryKey = `${gridType}-${baseIdx}`;
       if (token === null) {
         result.push({ token: null, baseIdx });
       } else if (SYMBOLS.includes(token)) {
-        // Labels/Symbols stay as single units
         result.push({ token: token, baseIdx, subIdx: 0, isSymbol: true });
-      } else if (binaryMaps[baseIdx] && !isNaN(token) && token !== " ") {
+      } 
+      else if (binaryMaps[binaryKey]) {
         const binStr = parseInt(token).toString(2);
         binStr.split('').forEach((bit, bIdx) => {
-          // Stable key: base index + bit position
           result.push({ token: bit, baseIdx, subIdx: bIdx, isBinary: true });
         });
       } else {
         token.toString().split('').forEach((digit, dIdx) => {
-          // Stable key: base index + digit position
           result.push({ token: digit, baseIdx, subIdx: dIdx, isBinary: false });
         });
       }
     });
     return result;
-  }, [baseTokens, binaryMaps, SYMBOLS]);
+  }, [tokens, binaryMaps, gridType, SYMBOLS]);
 
   const rows = useMemo(() => {
-    return expandedData.reduce((acc, curr, i) => {
+    return expandedData.reduce((acc, curr) => {
       if (curr.token === null) acc.push([]);
       else acc[acc.length - 1].push({ ...curr });
       return acc;
@@ -123,30 +111,35 @@ const GridDisplay = ({ gridType, wordVal, selections, setSelections, activeColor
 
   const handleInteraction = (item) => {
     if (SYMBOLS.includes(item.token) || item.isSymbol) return;
-    
-    // Toggling BIN/DEC mode
+    const binaryKey = `${gridType}-${item.baseIdx}`;
+
     if (activeColor === 'BIN') {
-      setBinaryMaps(prev => ({ ...prev, [item.baseIdx]: true }));
+      // Always allow turning a decimal into binary, 
+      // even if it's a number we just created.
+      setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
       return;
     }
+    
     if (activeColor === 'DEC') {
-      setBinaryMaps(prev => ({ ...prev, [item.baseIdx]: false }));
+      if (item.isBinary) {
+        const boxKey = `${gridType}-${item.baseIdx}-${item.subIdx}`;
+        setBoxSelections(prev => {
+          const next = { ...prev };
+          if (next[boxKey]) delete next[boxKey];
+          else next[boxKey] = item.token;
+          return next;
+        });
+      } else {
+        setBinaryMaps(prev => ({ ...prev, [binaryKey]: false }));
+      }
       return;
     }
 
-    // Creating a stable key for the selection map
     const selectionKey = `${item.baseIdx}-${item.subIdx}`;
-
     setSelections(prev => {
       const newMap = { ...prev };
       const currentGridSelection = { ...(newMap[gridType] || {}) };
-      
-      if (currentGridSelection[selectionKey] === activeColor) {
-        delete currentGridSelection[selectionKey];
-      } else {
-        currentGridSelection[selectionKey] = activeColor;
-      }
-      
+      currentGridSelection[selectionKey] = currentGridSelection[selectionKey] === activeColor ? null : activeColor;
       newMap[gridType] = currentGridSelection;
       return newMap;
     });
@@ -154,84 +147,183 @@ const GridDisplay = ({ gridType, wordVal, selections, setSelections, activeColor
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
-      {rows.map((row, rIdx) => {
-        const isLastRow = rIdx === 3; 
-        return (
-          <div key={rIdx} style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-            {row.map((item, i) => {
-              const isSpacerString = item.token === " ";
-              const isSymbolToken = SYMBOLS.includes(item.token) || item.isSymbol;
-              const shouldHide = isSpacerString || (isLastRow && isSymbolToken);
-              const isSymStyle = isSymbolToken && !isSpacerString;
-              
-              const selectionKey = `${item.baseIdx}-${item.subIdx}`;
-              const highlight = (selections[gridType] || {})[selectionKey];
+      {rows.map((row, rIdx) => (
+        <div key={rIdx} style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+          {row.map((item, i) => {
+            const isSpacerString = item.token === " ";
+            const isSymbolToken = SYMBOLS.includes(item.token) || item.isSymbol;
+            const shouldHide = isSpacerString || (rIdx === 3 && isSymbolToken);
+            const isSymStyle = isSymbolToken && !isSpacerString;
+            const selectionKey = `${item.baseIdx}-${item.subIdx}`;
+            const boxKey = `${gridType}-${item.baseIdx}-${item.subIdx}`;
+            const highlight = (selections[gridType] || {})[selectionKey];
+            const isBoxed = boxSelections[boxKey] !== undefined && boxSelections[boxKey] !== null;
 
-              return (
-                <div
-                  key={`${selectionKey}-${i}`}
-                  onMouseDown={() => { if(!isSymStyle && !shouldHide) { setIsDragging(true); handleInteraction(item); }}}
-                  onMouseEnter={() => { if (isDragging && !isSymStyle && !shouldHide) handleInteraction(item); }}
-                  style={{
-                    minWidth: isSymStyle ? 'auto' : '32px',
-                    height: '32px',
-                    padding: isSymStyle ? '0 8px' : '0',
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    backgroundColor: highlight || (isSymStyle || shouldHide ? 'transparent' : '#2a2a2a'),
-                    borderRadius: item.isBinary ? '50%' : '4px',
-                    fontSize: isSymStyle ? '0.85rem' : (item.isBinary ? '0.9rem' : '1.1rem'),
-                    fontWeight: 'bold', 
-                    color: isSymStyle ? '#555' : 'white',
-                    cursor: (isSymStyle || shouldHide) ? 'default' : 'pointer', 
-                    userSelect: 'none', 
-                    border: item.isBinary ? '1px solid rgba(255,255,255,0.2)' : 'none',
-                    visibility: shouldHide ? 'hidden' : 'visible'
-                  }}
-                >
-                  {item.token}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
+            return (
+              <div
+                key={`${selectionKey}-${i}`}
+                onMouseDown={() => { if(!isSymStyle && !shouldHide) { setIsDragging(true); handleInteraction(item); }}}
+                onMouseEnter={() => { if (isDragging && !isSymStyle && !shouldHide) handleInteraction(item); }}
+                style={{
+                  minWidth: isSymStyle ? 'auto' : '32px', height: '32px', padding: isSymStyle ? '0 8px' : '0',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: highlight || (isSymStyle || shouldHide ? 'transparent' : '#2a2a2a'),
+                  borderRadius: item.isBinary ? '50%' : '4px',
+                  fontSize: isSymStyle ? '0.85rem' : (item.isBinary ? '0.9rem' : '1.1rem'),
+                  fontWeight: 'bold', color: isSymStyle ? '#555' : 'white',
+                  cursor: (isSymStyle || shouldHide) ? 'default' : 'pointer', userSelect: 'none', 
+                  border: isBoxed ? '2px solid #3b82f6' : (item.isBinary ? '1px solid rgba(255,255,255,0.2)' : 'none'),
+                  boxShadow: isBoxed ? '0 0 8px #3b82f6' : 'none', visibility: shouldHide ? 'hidden' : 'visible'
+                }}
+              >
+                {item.token}
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 };
 
 // --- GAME COMPONENT ---
 const GameComponent = ({ settings }) => {
-  const [selections, setSelections] = useState({});
-  const [binaryMaps, setBinaryMaps] = useState({}); 
-  const [activeColor, setActiveColor] = useState(PALETTE[0]);
-  const [isDragging, setIsDragging] = useState(false);
-  
+  // 1. Move constant data to the top
   const SYMBOLS = ["=", "×", "+", "row:", "col:", "⬡", "Layer", " "];
   const wordVal = ZODIAC_MAPS[settings.language][settings.word];
 
-  // --- UPDATED MATCH LOGIC INSIDE GameComponent ---
+  // 2. State
+  const [selections, setSelections] = useState({});
+  const [binaryMaps, setBinaryMaps] = useState({}); 
+  const [boxSelections, setBoxSelections] = useState({}); 
+  const [activeColor, setActiveColor] = useState(PALETTE[0]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [gridTokens, setGridTokens] = useState({}); 
+
+  // 3. Effects
+  useEffect(() => {
+    const initial = {};
+    settings.gridTypes.forEach(type => {
+      initial[type] = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
+    });
+    setGridTokens(initial);
+  }, [wordVal, settings.gridTypes]);
+
+  // 4. Memos
+  const decPermutations = useMemo(() => getPermutations(wordVal.toString()).slice(0, 6), [wordVal]);
+
+  const boxedData = useMemo(() => {
+    const boxedKeys = Object.keys(boxSelections);
+    if (boxedKeys.length === 0) return null;
+    const [gridType] = boxedKeys[0].split('-');
+    const binaryString = Object.values(boxSelections).join('');
+    const binaryPerms = getPermutations(binaryString);
+    const decimalPerms = binaryPerms.map(bin => parseInt(bin, 2).toString());
+
+    return {
+      gridType,
+      binaryString,
+      currentDecimal: parseInt(binaryString, 2).toString(),
+      perms: Array.from(new Set(decimalPerms)).sort((a, b) => b - a)
+    };
+  }, [boxSelections]);
+
+  const resetToOriginal = () => {
+    // 1. Restore tokens to the original word value calculations
+    const restoredTokens = {};
+    settings.gridTypes.forEach(type => {
+      restoredTokens[type] = type === "Square Shell" 
+        ? getSquareShellData(wordVal) 
+        : getHexagonData(wordVal);
+    });
+    setGridTokens(restoredTokens);
+
+    // 2. Clear all user-driven states
+    setBinaryMaps({});
+    setBoxSelections({});
+    setSelections({});
+  };
+
+  const handlePermutationClick = (targetDecimal) => {
+  if (!boxedData) return;
+  const { gridType } = boxedData;
+  const currentTokens = [...gridTokens[gridType]];
+
+  // 1. Group selections by base index
+  const selectionsByIndex = Object.keys(boxSelections).reduce((acc, key) => {
+    const [_, baseIdx, subIdx] = key.split('-').map(Number);
+    if (!acc[baseIdx]) acc[baseIdx] = [];
+    acc[baseIdx].push(subIdx);
+    return acc;
+  }, {});
+
+  const involvedIndices = Object.keys(selectionsByIndex).map(Number).sort((a, b) => a - b);
+  const firstIdx = involvedIndices[0];
+
+  let newTokens = [];
+  let newBinaryFlags = {};
+
+  currentTokens.forEach((token, idx) => {
+    if (involvedIndices.includes(idx)) {
+      const fullBin = parseInt(token).toString(2);
+      const selectedSubs = selectionsByIndex[idx];
+      
+      // If it's the first involved index, put the targetDecimal here
+      if (idx === firstIdx) {
+        newTokens.push(targetDecimal);
+        // The new decimal is NOT binary by default
+      }
+
+      // Calculate what remains of this specific token
+      const remainingBits = fullBin.split('').filter((_, sub) => !selectedSubs.includes(sub)).join('');
+      
+      if (remainingBits.length > 0) {
+        const leftoverVal = parseInt(remainingBits, 2).toString();
+        newTokens.push(leftoverVal);
+        // Flag this leftover piece as binary so it stays '100'
+        newBinaryFlags[newTokens.length - 1] = true;
+      }
+    } else {
+      // Keep unrelated tokens
+      newTokens.push(token);
+      if (binaryMaps[`${gridType}-${idx}`]) {
+        newBinaryFlags[newTokens.length - 1] = true;
+      }
+    }
+  });
+
+  // 2. Sync States
+  setGridTokens(prev => ({ ...prev, [gridType]: newTokens }));
+  setBoxSelections({});
+  
+  // Update binary maps to match the new indices
+  setBinaryMaps(prev => {
+    const next = {};
+    Object.keys(newBinaryFlags).forEach(newIdx => {
+      next[`${gridType}-${newIdx}`] = true;
+    });
+    return next;
+  });
+};
+  
+  const clearAllHighlights = () => setSelections({});
+  const revertAllToDecimal = () => { setBinaryMaps({}); setBoxSelections({}); };
+
   const matchResults = useMemo(() => {
     const colorDigitMap = {};
     PALETTE.forEach(c => colorDigitMap[c] = []);
 
     settings.gridTypes.forEach(type => {
-      const baseData = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
+      const tokens = gridTokens[type] || [];
       const gridSelections = selections[type] || {};
       
-      baseData.forEach((token, baseIdx) => {
+      tokens.forEach((token, baseIdx) => {
         if (token === null || SYMBOLS.includes(token)) return;
-
-        const isBin = binaryMaps[baseIdx];
+        const isBin = binaryMaps[`${type}-${baseIdx}`];
         const chars = isBin ? parseInt(token).toString(2).split('') : token.toString().split('');
-        
         chars.forEach((char, subIdx) => {
-          const selectionKey = `${baseIdx}-${subIdx}`;
-          const color = gridSelections[selectionKey];
-          if (color && PALETTE.includes(color)) {
-            colorDigitMap[color].push(char);
-          }
+          const color = gridSelections[`${baseIdx}-${subIdx}`];
+          if (color && PALETTE.includes(color)) colorDigitMap[color].push(char);
         });
       });
     });
@@ -239,121 +331,75 @@ const GameComponent = ({ settings }) => {
     return Object.entries(CONSTANTS).flatMap(([category, group]) => 
       Object.entries(group).map(([symbol, value]) => {
         const targetDigits = value.toString().replace(/[^0-9]/g, '').split('');
-        let bestColor = null;
-        let maxPercent = 0;
-
+        let bestColor = null; let maxPercent = 0;
         PALETTE.forEach(color => {
           const userBank = [...colorDigitMap[color]]; 
           let matches = 0;
           targetDigits.forEach(digit => {
             const idx = userBank.indexOf(digit);
-            if (idx !== -1) {
-              matches++;
-              userBank.splice(idx, 1);
-            }
+            if (idx !== -1) { matches++; userBank.splice(idx, 1); }
           });
           const percent = targetDigits.length > 0 ? (matches / targetDigits.length) * 100 : 0;
-          if (percent > maxPercent) {
-            maxPercent = percent;
-            bestColor = color;
-          }
+          if (percent > maxPercent) { maxPercent = percent; bestColor = color; }
         });
-
         return { symbol, value, percent: maxPercent, dominantColor: bestColor || '#333', category };
       })
     ).sort((a, b) => b.percent - a.percent);
-  }, [selections, binaryMaps, settings.gridTypes, wordVal]);
+  }, [selections, binaryMaps, gridTokens, settings.gridTypes, wordVal, SYMBOLS]);
 
   const avgMatch = matchResults.reduce((acc, curr) => acc + curr.percent, 0) / matchResults.length;
   const brightness = 26 + (avgMatch * 0.4);
 
   return (
-    <div 
-      style={{ 
-        display: 'flex', 
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        padding: '60px 20px', 
-        fontFamily: 'monospace', 
-        color: 'white', 
-        backgroundColor: '#1a1a1a', 
-        minHeight: '100vh',
-        width: '100%'
-      }} 
-      onMouseUp={() => setIsDragging(false)}
-    >
-      {/* INNER WRAPPER: Holds both sections together for centering */}
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px', fontFamily: 'monospace', color: 'white', backgroundColor: '#1a1a1a', minHeight: '100vh', width: '100%' }} onMouseUp={() => setIsDragging(false)}>
       <div style={{ display: 'flex', flexDirection: 'row', gap: '60px', alignItems: 'flex-start' }}>
-        
-        {/* LEFT: GRID SECTION */}
         <div style={{ width: '600px' }}>
           <div style={{ marginBottom: '40px' }}>
-            <h2 style={{ margin: 0, letterSpacing: '1px', fontSize: '2rem' }}>
-              {settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})
-            </h2>
+            <h2 style={{ margin: 0, letterSpacing: '1px', fontSize: '2rem' }}>{settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})</h2>
           </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '50px' }}>
             {settings.gridTypes.map(type => (
               <div key={type}>
-                <h5 style={{ color: '#444', marginBottom: '15px', fontSize: '0.8rem', letterSpacing: '2px' }}>
-                  {type.toUpperCase()}
-                </h5>
+                <h5 style={{ color: '#444', marginBottom: '15px', fontSize: '0.8rem', letterSpacing: '2px' }}>{type.toUpperCase()}</h5>
                 <GridDisplay
-                  gridType={type}
-                  wordVal={wordVal}
-                  selections={selections}
-                  setSelections={setSelections}
-                  binaryMaps={binaryMaps}
-                  setBinaryMaps={setBinaryMaps}
-                  activeColor={activeColor}
-                  isDragging={isDragging}
-                  setIsDragging={setIsDragging}
-                  SYMBOLS={SYMBOLS}
+                  gridType={type} tokens={gridTokens[type]} selections={selections} setSelections={setSelections}
+                  binaryMaps={binaryMaps} setBinaryMaps={setBinaryMaps} activeColor={activeColor}
+                  boxSelections={boxSelections} setBoxSelections={setBoxSelections}
+                  isDragging={isDragging} setIsDragging={setIsDragging} SYMBOLS={SYMBOLS}
                 />
               </div>
             ))}
           </div>
+          <div style={{ marginTop: '40px', display: 'flex', gap: '15px', borderTop: '1px solid #333', paddingTop: '20px' }}>
+            <button onClick={clearAllHighlights} style={resetBtnStyle}>Clear All Highlights</button>
+            <button onClick={resetToOriginal} style={resetBtnStyle}>Reset</button>
+          </div>
         </div>
-
-        {/* RIGHT: CONSTANTS PANEL */}
-        <div style={{ 
-          width: '420px', 
-          backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})`,
-          padding: '25px',
-          borderRadius: '16px',
-          border: '1px solid rgba(255,255,255,0.1)',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          position: 'sticky',
-          top: '40px'
-        }}>
-          <div style={{ display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '10px', marginBottom: '25px', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: '420px', backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})`, padding: '25px', borderRadius: '16px', maxHeight: '85vh', overflowY: 'auto', position: 'sticky', top: '40px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '10px', marginBottom: '20px', alignItems: 'center', justifyContent: 'center' }}>
             {PALETTE.map(color => (
-              <div key={color} onClick={() => setActiveColor(color)} style={{ width: '28px', height: '28px', backgroundColor: color, borderRadius: '50%', cursor: 'pointer', border: activeColor === color ? '2px solid white' : 'none', boxShadow: activeColor === color ? `0 0 10px ${color}` : 'none' }} />
+              <div key={color} onClick={() => setActiveColor(color)} style={{ width: '28px', height: '28px', backgroundColor: color, borderRadius: '50%', cursor: 'pointer', border: activeColor === color ? '2px solid white' : 'none' }} />
             ))}
             <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 8px' }} />
-            <button onClick={() => setActiveColor('BIN')} style={{ ...toolBtn, backgroundColor: activeColor === 'BIN' ? '#00e5ff' : '#333' }}>BIN</button>
-            <button onClick={() => setActiveColor('DEC')} style={{ ...toolBtn, backgroundColor: activeColor === 'DEC' ? '#ff4081' : '#333' }}>DEC</button>
+            <button onClick={() => setActiveColor('BIN')} style={{ ...toolBtn, backgroundColor: activeColor === 'BIN' ? '#3b82f6' : '#333' }}>BIN</button>
+            <button onClick={() => setActiveColor('DEC')} style={{ ...toolBtn, backgroundColor: activeColor === 'DEC' ? '#3b82f6' : '#333' }}>DEC</button>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {matchResults.map((m, i) => (
-              <div key={i} style={{ 
-                padding: '18px', 
-                borderRadius: '10px', 
-                background: m.percent > 0 ? `${m.dominantColor}22` : 'rgba(255,255,255,0.03)', 
-                border: m.percent > 0 ? `1px solid ${m.dominantColor}55` : '1px solid rgba(255,255,255,0.05)',
-                transition: '0.3s'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>{m.symbol}</span>
-                  <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>{m.percent.toFixed(1)}%</span>
-                </div>
-                <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', marginTop: '8px', wordBreak: 'break-all' }}>{m.value}</div>
+          {activeColor === 'DEC' && boxedData && (
+            <div style={{ border: '1px solid #10b981', borderRadius: '8px', padding: '15px', marginBottom: '20px', backgroundColor: 'rgba(16, 185, 129, 0.1)' }}>
+              <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 'bold', marginBottom: '10px', letterSpacing: '1px' }}>SELECT PERMUTATION TO CONVERT GRID:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {boxedData.perms.map((p, idx) => (
+                  <button key={idx} onClick={() => handlePermutationClick(p)} style={{ padding: '6px 12px', background: '#10b981', border: 'none', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', color: 'white', cursor: 'pointer' }}>{p}</button>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+          {matchResults.map((m, i) => (
+            <div key={i} style={{ padding: '18px', borderRadius: '10px', background: m.percent > 0 ? `${m.dominantColor}22` : 'rgba(255,255,255,0.03)', marginBottom: '15px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{m.symbol}</span><span style={{ fontSize: '0.9rem', opacity: 0.8 }}>{m.percent.toFixed(1)}%</span></div>
+              <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '8px' }}>{m.value}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -361,8 +407,8 @@ const GameComponent = ({ settings }) => {
 };
 
 const toolBtn = { border: 'none', borderRadius: '4px', color: 'white', cursor: 'pointer', fontWeight: 'bold', padding: '6px 10px', fontSize: '0.7rem' };
+const resetBtnStyle = { backgroundColor: '#2a2a2a', color: '#888', border: '1px solid #444', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' };
 
-// --- MAIN APP ---
 export default function App() {
   const [step, setStep] = useState('TOPIC'); 
   const [settings, setSettings] = useState({ topic: '', word: '', language: '', gridTypes: [] });
@@ -370,9 +416,7 @@ export default function App() {
   const toggleGridType = (type) => {
     setSettings(prev => ({
       ...prev,
-      gridTypes: prev.gridTypes.includes(type) 
-        ? prev.gridTypes.filter(t => t !== type) 
-        : [...prev.gridTypes, type]
+      gridTypes: prev.gridTypes.includes(type) ? prev.gridTypes.filter(t => t !== type) : [...prev.gridTypes, type]
     }));
   };
 
@@ -406,18 +450,11 @@ export default function App() {
     <div style={menuStyle}>
       <h2>Tessellation</h2>
       {["Square Shell", "Hexagon"].map(g => (
-        <button key={g} 
-          style={{...menuBtn, backgroundColor: settings.gridTypes.includes(g) ? '#3b82f6' : '#333'}} 
-          onClick={() => toggleGridType(g)}
-        >
+        <button key={g} style={{...menuBtn, backgroundColor: settings.gridTypes.includes(g) ? '#3b82f6' : '#333'}} onClick={() => toggleGridType(g)}>
           {g} {settings.gridTypes.includes(g) ? '✓' : ''}
         </button>
       ))}
-      <button 
-        disabled={settings.gridTypes.length === 0}
-        style={{...menuBtn, marginTop: '30px', backgroundColor: '#10b981', opacity: settings.gridTypes.length === 0 ? 0.5 : 1}} 
-        onClick={() => setStep('GAME')}
-      >
+      <button disabled={settings.gridTypes.length === 0} style={{...menuBtn, marginTop: '30px', backgroundColor: '#10b981', opacity: settings.gridTypes.length === 0 ? 0.5 : 1}} onClick={() => setStep('GAME')}>
         Confirm Selection
       </button>
     </div>
