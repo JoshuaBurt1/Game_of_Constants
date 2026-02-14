@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from './firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import './App.css';
 
 // --- DATA MAPS & UTILS ---
@@ -265,8 +265,7 @@ const GridDisplay = ({ gridType, tokens, selections, setSelections, activeColor,
 };
 
 // --- GAME COMPONENT ---
-const GameComponent = ({ settings }) => {
-  // 1. Move constant data to the top
+const GameComponent = ({ settings, setStep }) => {
   const wordVal = ZODIAC_MAPS[settings.language][settings.word];
 
   // 2. State
@@ -509,6 +508,7 @@ const GameComponent = ({ settings }) => {
             ))}
           </div>
           <div style={{ marginTop: '40px', display: 'flex', gap: '15px', borderTop: '1px solid #333', paddingTop: '20px' }}>
+            <button onClick={() => setStep('TOPIC')} style={resetBtnStyle}>Home</button>
             <button onClick={clearAllHighlights} style={resetBtnStyle}>Clear All Highlights</button>
             <button onClick={resetToOriginal} style={resetBtnStyle}>Reset</button>
             <button onClick={handleSubmitScore} style={{ ...resetBtnStyle, marginLeft: 'auto'}}>Submit Scores</button>
@@ -641,10 +641,23 @@ export default function App() {
   const menuStyle = { textAlign: 'center', paddingTop: '80px', backgroundColor: '#1a1a1a', minHeight: '100vh', color: 'white' };
   const menuBtn = { display: 'block', margin: '10px auto', padding: '12px 24px', cursor: 'pointer', border: 'none', borderRadius: '6px', width: '220px', backgroundColor: '#333', color: 'white' };
 
+  const highscoreBtn = { ...menuBtn};
+
+  if (step === 'HIGHSCORES') return <HighscoresView onBack={() => setStep('TOPIC')} />;
+
   if (step === 'TOPIC') return (
     <div style={menuStyle}>
+      {/* Highscore entry point */}
+      <button style={highscoreBtn} onClick={() => setStep('HIGHSCORES')}>View Highscores</button>
+      
+      <div style={{ width: '40px', height: '1px', background: '#333', margin: '20px auto' }} />
+      
       <h2>Topic</h2>
-      {["Chinese Zodiac"].map(t => <button key={t} style={menuBtn} onClick={() => { setSettings({...settings, topic: t}); setStep('WORD'); }}>{t}</button>)}
+      {["Chinese Zodiac"].map(t => (
+        <button key={t} style={menuBtn} onClick={() => { setSettings({...settings, topic: t}); setStep('WORD'); }}>
+          {t}
+        </button>
+      ))}
     </div>
   );
 
@@ -678,5 +691,60 @@ export default function App() {
     </div>
   );
 
-  return <GameComponent settings={settings} />;
+  return <GameComponent settings={settings} setStep={setStep} />;
 }
+
+function HighscoresView({ onBack }) {
+  const [scores, setScores] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchScores = async () => {
+      try {
+        const q = query(collection(db, "highscores"), orderBy("createdAt", "desc"), limit(20));
+        const querySnapshot = await getDocs(q);
+        const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setScores(data);
+      } catch (err) {
+        console.error("Error fetching scores:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchScores();
+  }, []);
+
+  return (
+    <div style={{ textAlign: 'center', paddingTop: '60px', color: 'white' }}>
+      <h2>Recent Achievements</h2>
+      {loading ? <p>Loading...</p> : (
+        <div style={{ maxWidth: '500px', margin: '20px auto', background: '#222', padding: '20px', borderRadius: '12px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #444', color: '#888', fontSize: '0.8rem' }}>
+                <th style={{ padding: '10px' }}>WORD</th>
+                <th style={{ padding: '10px' }}>LANG</th>
+                <th style={{ padding: '10px' }}>DATE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scores.map(s => (
+                <tr key={s.id} style={{ borderBottom: '1px solid #333' }}>
+                  <td style={{ padding: '12px', fontWeight: 'bold' }}>{s.word}</td>
+                  <td style={{ padding: '12px', color: '#aaa' }}>{s.language}</td>
+                  <td style={{ padding: '12px', fontSize: '0.75rem', color: '#666' }}>
+                    {s.createdAt?.toDate().toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <button onClick={onBack} style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer', background: '#444', border: 'none', color: 'white', borderRadius: '6px' }}>
+        Back to Menu
+      </button>
+    </div>
+  );
+}
+
