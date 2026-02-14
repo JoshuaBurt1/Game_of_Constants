@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { db } from './firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import './App.css';
 
 // --- DATA MAPS & UTILS ---
@@ -274,6 +276,28 @@ const GameComponent = ({ settings }) => {
   const [activeColor, setActiveColor] = useState(PALETTE[0]);
   const [isDragging, setIsDragging] = useState(false);
   const [gridTokens, setGridTokens] = useState({}); 
+  const handleSubmitScore = async () => {
+    try {
+      // Construct the payload based on your puzzle state
+      const highscoreData = {
+        topic: settings.topic || "General",
+        word: settings.word,
+        language: settings.language,
+        grids: settings.gridTypes.reduce((acc, type) => {
+          acc[type] = selections[type] || {};
+          return acc;
+        }, {}),
+        timestamp: serverTimestamp(),
+      };
+
+      const docRef = await addDoc(collection(db, "highscores"), highscoreData);
+      alert("Score submitted to highscore list!");
+      console.log("Document written with ID: ", docRef.id);
+    } catch (e) {
+      console.error("Error adding document: ", e);
+      alert("Error submitting score.");
+    }
+  };
 
   // 3. Effects
   useEffect(() => {
@@ -487,6 +511,7 @@ const GameComponent = ({ settings }) => {
           <div style={{ marginTop: '40px', display: 'flex', gap: '15px', borderTop: '1px solid #333', paddingTop: '20px' }}>
             <button onClick={clearAllHighlights} style={resetBtnStyle}>Clear All Highlights</button>
             <button onClick={resetToOriginal} style={resetBtnStyle}>Reset</button>
+            <button onClick={handleSubmitScore} style={{ ...resetBtnStyle, marginLeft: 'auto'}}>Submit Scores</button>
           </div>
         </div>
         <div style={{ width: '420px', backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})`, padding: '25px', borderRadius: '16px', maxHeight: '85vh', overflowY: 'auto', position: 'sticky', top: '40px', border: '1px solid rgba(255,255,255,0.1)' }}>
