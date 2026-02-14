@@ -277,21 +277,23 @@ const GameComponent = ({ settings, setStep }) => {
   const [gridTokens, setGridTokens] = useState({}); 
   const handleSubmitScore = async () => {
     try {
-      // Construct the payload based on your puzzle state
+      // We create a clean list of just the symbol and the percentage
+      const performance = matchResults.map(m => ({
+        symbol: m.symbol,
+        percent: m.percent.toFixed(1)
+      }));
+
       const highscoreData = {
         topic: settings.topic || "General",
         word: settings.word,
         language: settings.language,
-        grids: settings.gridTypes.reduce((acc, type) => {
-          acc[type] = selections[type] || {};
-          return acc;
-        }, {}),
-        timestamp: serverTimestamp(),
+        results: performance, // This is your list of constant percentages
+        timestamp: serverTimestamp(), 
       };
 
-      const docRef = await addDoc(collection(db, "highscores"), highscoreData);
-      alert("Score submitted to highscore list!");
-      console.log("Document written with ID: ", docRef.id);
+      await addDoc(collection(db, "highscores"), highscoreData);
+      alert("Percentages submitted to Highscores!");
+      setStep('TOPIC'); 
     } catch (e) {
       console.error("Error adding document: ", e);
       alert("Error submitting score.");
@@ -701,9 +703,11 @@ function HighscoresView({ onBack }) {
   useEffect(() => {
     const fetchScores = async () => {
       try {
-        const q = query(collection(db, "highscores"), orderBy("createdAt", "desc"), limit(20));
+        // 1. Change "createdAt" to "timestamp"
+        const q = query(collection(db, "highscores"), orderBy("timestamp", "desc"), limit(20));
         const querySnapshot = await getDocs(q);
         const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log("Fetched Data:", data); // Check your console for this!
         setScores(data);
       } catch (err) {
         console.error("Error fetching scores:", err);
@@ -718,22 +722,44 @@ function HighscoresView({ onBack }) {
     <div style={{ textAlign: 'center', paddingTop: '60px', color: 'white' }}>
       <h2>Recent Achievements</h2>
       {loading ? <p>Loading...</p> : (
-        <div style={{ maxWidth: '500px', margin: '20px auto', background: '#222', padding: '20px', borderRadius: '12px' }}>
+        <div style={{ maxWidth: '800px', margin: '20px auto', background: '#222', padding: '20px', borderRadius: '12px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #444', color: '#888', fontSize: '0.8rem' }}>
+              <tr style={{ borderBottom: '1px solid #444', color: '#888', fontSize: '0.7rem' }}>
+                <th style={{ padding: '10px' }}>TOPIC</th>
                 <th style={{ padding: '10px' }}>WORD</th>
-                <th style={{ padding: '10px' }}>LANG</th>
+                <th style={{ padding: '10px' }}>MATCHES</th>
                 <th style={{ padding: '10px' }}>DATE</th>
               </tr>
             </thead>
             <tbody>
               {scores.map(s => (
                 <tr key={s.id} style={{ borderBottom: '1px solid #333' }}>
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>{s.word}</td>
-                  <td style={{ padding: '12px', color: '#aaa' }}>{s.language}</td>
-                  <td style={{ padding: '12px', fontSize: '0.75rem', color: '#666' }}>
-                    {s.createdAt?.toDate().toLocaleDateString()}
+                  {/* 1. TOPIC */}
+                  <td style={{ padding: '12px', fontSize: '0.8rem', color: '#888' }}>{s.topic || "General"}</td>
+                  
+                  {/* 2. WORD & LANG */}
+                  <td style={{ padding: '12px' }}>
+                    <div style={{ fontWeight: 'bold' }}>{s.word}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#666' }}>{s.language}</div>
+                  </td>
+
+                  {/* 3. LIST OF CONSTANTS */}
+                  <td style={{ padding: '12px', fontSize: '0.75rem' }}>
+                    {s.results && s.results.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
+                        {s.results.slice(0, 3).map((res, idx) => (
+                          <div key={idx} style={{ color: parseFloat(res.percent) >= 90 ? '#4ade80' : '#aaa' }}>
+                            {res.symbol}: <strong>{res.percent}%</strong>
+                          </div>
+                        ))}
+                      </div>
+                    ) : "--"}
+                  </td>
+
+                  {/* 4. DATE */}
+                  <td style={{ padding: '12px', fontSize: '0.7rem', color: '#666' }}>
+                    {s.timestamp ? s.timestamp.toDate().toLocaleDateString() : 'Recent'}
                   </td>
                 </tr>
               ))}
