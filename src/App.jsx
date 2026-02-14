@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import './App.css';
 
 // --- DATA MAPS & UTILS ---
 const ZODIAC_MAPS = {
@@ -12,15 +13,45 @@ const ZODIAC_NAMES = {
 };
 
 const CONSTANTS = {
-  PLANCK: {"ℏ":1.054571817, "ℎ":6.62607015, "ℏ/c^2":1.17336938491, "ℎ/c^2":7.3724192313},
-  LIGHT: {"c^2":8.9875517873681764, "c":299792458,  "1/c":3.3335640951, "(1/c)^2":1.11265005, "(1/c)^4":1.2379901472},
-  GRAVITY: {"G":6.6743015, "κ":2.076647, "G^2":44.54628049},
-  FINE_STRUCTURE: {"1/α":137.035999, "α":0.007297352, "√α":0.08542453, "√(1/α)":11.706237},
-  MAGNETIC: {"μ0":1.25663706},
-  ELECTRIC: { "ε0":8.85418782},
-  BOLTZMANN: {"kB":1.380649},
-  TEMPERATURE: {"T":273.15}
+  PLANCK: {
+    "ℏ": { val: "1.054571817", mult: "10", sign: "-", exp: "34", unit: " J·s" },
+    "ℎ": { val: "6.6260", mult: "10", sign: "-", exp: "34", unit: " J·s" },
+    "ℏ/c^2": { val: "1.173369", mult: "10", sign: "-", exp: "51", unit: " kg·m/s" },
+    "ℎ/c^2": { val: "7.3724192313", mult: "10", sign: "-", exp: "51", unit: " kg·m/s" }
+  },
+  LIGHT: {
+    "c^2": { val: "8.9875517873681764", mult: "10", sign: "", exp: "16", unit: " m²/s²" },
+    "c": { val: "299792458", mult: "", sign: "", exp: "", unit: " m/s" },
+    "1/c": { val: "3.3335640951", mult: "10", sign: "-", exp: "9", unit: " s/m" },
+    "(1/c)^2": { val: "1.11265005", mult: "10", sign: "-", exp: "17", unit: " s²/m²" },
+    "(1/c)^4": { val: "1.2379901472", mult: "10", sign: "-", exp: "34", unit: " s²/m²" }
+  },
+  GRAVITY: {
+    "G": { val: "6.6743", mult: "10", sign: "-", exp: "11", unit: " m³/kg·s²" },
+    "κ": { val: "2.076647", mult: "10", sign: "-", exp: "43", unit: " s²/m·kg" },
+    "G^2": { val: "4.454628049", mult: "10", sign: "-", exp: "21", unit: " m⁶/kg²·s⁴" }
+  },
+  FINE_STRUCTURE: {
+    "1/α": { val: "137.035999", mult: "", sign: "", exp: "", unit: "" },
+    "α": { val: "7.297352", mult: "10", sign: "-", exp: "3", unit: "" },
+    "√α": { val: "8.542453", mult: "10", sign: "-", exp: "2", unit: "" },
+    "√(1/α)": { val: "11.706237", mult: "", sign: "", exp: "", unit: "" }
+  },
+  MAGNETIC: {
+    "μ0": { val: "1.25663706", mult: "10", sign: "-", exp: "6", unit: " N/A²" }
+  },
+  ELECTRIC: {
+    "ε0": { val: "8.85418782", mult: "10", sign: "-", exp: "12", unit: " F/m" }
+  },
+  BOLTZMANN: {
+    "kB": { val: "1.380649", mult: "10", sign: "-", exp: "23", unit: " J/K" }
+  },
+  TEMPERATURE: {
+    "T": { val: "273.15", mult: "", sign: "", exp: "", unit: " K" }
+  }
 };
+
+const SYMBOLS = ["=", "×", "+", "row:", "col:", "⬡", "Layer", " "];
 
 const PALETTE = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 
@@ -46,22 +77,39 @@ const getPermutations = (str) => {
 };
 
 const getSquareShellData = (n) => {
-  if (n <= 0) return [0];
-  if (n === 1) return [1];
+  if (n <= 0) return [];
+  if (n === 1) return [{ token: "1", stableId: "sq-0-1-0", originalDigit: "1", isSymbol: false }];
+  
   let k = Math.floor(Math.sqrt(n - 1));
   let offset = n - (k * k);
   const R = Math.floor((offset <= k + 1) ? k : k - (offset - (k + 1))) + 1;
   const C = Math.floor((offset <= k + 1) ? offset - 1 : k) + 1;
   const prod = R * C;
   const sum = R + C;
+
+  // Preserve your dynamic spacers logic
   const spacers = [...Array(R.toString().length).fill(" "), "×", ...Array(C.toString().length).fill(" "), "="];
+
   const lines = [
     [n, "=", k, "×", k, "+", offset, "row:", R, "col:", C],
     [C, "×", R, "=", prod],
     [C, "+", R, "=", sum],
     [...spacers, prod + sum] 
   ];
-  return lines.flatMap(line => [...line.flatMap(digitize), null]);
+
+  return lines.flatMap((line, lineIdx) => [
+    ...line.flatMap((val, valIdx) => {
+      const chars = digitize(val);
+      return chars.map((char, charIdx) => ({
+        token: char,
+        // The ID includes the line index and value index so it stays unique but predictable
+        stableId: `sq-${lineIdx}-${valIdx}-${charIdx}`, 
+        originalDigit: char,
+        isSymbol: SYMBOLS.includes(char)
+      }));
+    }),
+    null // Newline marker
+  ]);
 };
 
 const getHexagonData = (N) => {
@@ -69,8 +117,25 @@ const getHexagonData = (N) => {
   let s = layer - 1;
   let hexSum = 3 * s * s - 3 * s + 1;
   let offset = N - hexSum;
-  const lines = [[N, "⬡", hexSum, "+", offset], ["Layer", layer]];
-  return lines.flatMap(line => [...line.flatMap(digitize), null]);
+
+  const lines = [
+    [N],
+    [6, "⬡", hexSum, "+", offset], 
+    ["Layer", layer]
+  ];
+
+  return lines.flatMap((line, lineIdx) => [
+    ...line.flatMap((val, valIdx) => {
+      const chars = digitize(val);
+      return chars.map((char, charIdx) => ({
+        token: char,
+        stableId: `hex-${lineIdx}-${valIdx}-${charIdx}`,
+        originalDigit: char,
+        isSymbol: SYMBOLS.includes(char)
+      }));
+    }),
+    null
+  ]);
 };
 
 // --- SUB-COMPONENT: SINGLE GRID ---
@@ -80,26 +145,27 @@ const GridDisplay = ({ gridType, tokens, selections, setSelections, activeColor,
     let result = [];
     if (!tokens) return [];
     
-    tokens.forEach((token, baseIdx) => {
+    tokens.forEach((item, baseIdx) => {
       const binaryKey = `${gridType}-${baseIdx}`;
-      if (token === null) {
+      // Safe check: handle if item is object OR raw value
+      const currentVal = item?.token !== undefined ? item.token : item;
+
+      if (item === null) {
         result.push({ token: null, baseIdx });
-      } else if (SYMBOLS.includes(token)) {
-        result.push({ token: token, baseIdx, subIdx: 0, isSymbol: true });
+      } else if (item.isSymbol) {
+        result.push({ ...item, baseIdx, subIdx: 0 });
       } 
       else if (binaryMaps[binaryKey]) {
-        const binStr = parseInt(token).toString(2);
+        const binStr = parseInt(currentVal).toString(2);
         binStr.split('').forEach((bit, bIdx) => {
-          result.push({ token: bit, baseIdx, subIdx: bIdx, isBinary: true });
+          result.push({ ...item, token: bit, baseIdx, subIdx: bIdx, isBinary: true });
         });
       } else {
-        token.toString().split('').forEach((digit, dIdx) => {
-          result.push({ token: digit, baseIdx, subIdx: dIdx, isBinary: false });
-        });
+        result.push({ ...item, baseIdx, subIdx: 0, isBinary: false });
       }
     });
     return result;
-  }, [tokens, binaryMaps, gridType, SYMBOLS]);
+  }, [tokens, binaryMaps, gridType]);
 
   const rows = useMemo(() => {
     return expandedData.reduce((acc, curr) => {
@@ -110,12 +176,10 @@ const GridDisplay = ({ gridType, tokens, selections, setSelections, activeColor,
   }, [expandedData]);
 
   const handleInteraction = (item) => {
-    if (SYMBOLS.includes(item.token) || item.isSymbol) return;
+    if (item.isSymbol) return;
     const binaryKey = `${gridType}-${item.baseIdx}`;
 
     if (activeColor === 'BIN') {
-      // Always allow turning a decimal into binary, 
-      // even if it's a number we just created.
       setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
       return;
     }
@@ -135,45 +199,57 @@ const GridDisplay = ({ gridType, tokens, selections, setSelections, activeColor,
       return;
     }
 
-    const selectionKey = `${item.baseIdx}-${item.subIdx}`;
+    // Highlight logic using Stable ID
+    const selectionKey = item.stableId;
     setSelections(prev => {
       const newMap = { ...prev };
       const currentGridSelection = { ...(newMap[gridType] || {}) };
+      
+      // Toggle color
       currentGridSelection[selectionKey] = currentGridSelection[selectionKey] === activeColor ? null : activeColor;
+      
       newMap[gridType] = currentGridSelection;
       return newMap;
     });
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
+    <div className="grid-root">
       {rows.map((row, rIdx) => (
-        <div key={rIdx} style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+        <div key={rIdx} className="grid-row">
           {row.map((item, i) => {
             const isSpacerString = item.token === " ";
             const isSymbolToken = SYMBOLS.includes(item.token) || item.isSymbol;
             const shouldHide = isSpacerString || (rIdx === 3 && isSymbolToken);
             const isSymStyle = isSymbolToken && !isSpacerString;
-            const selectionKey = `${item.baseIdx}-${item.subIdx}`;
+            
+            const selectionKey = item.stableId;
             const boxKey = `${gridType}-${item.baseIdx}-${item.subIdx}`;
-            const highlight = (selections[gridType] || {})[selectionKey];
+            
+            const highlightColor = (!isSymStyle && !shouldHide) ? (selections[gridType] || {})[selectionKey] : null;
             const isBoxed = boxSelections[boxKey] !== undefined && boxSelections[boxKey] !== null;
+
+            // Per user instructions: only blue if orthogonal
+            const isOrthogonalMP = item.isMP && item.isOrthogonal;
+
+            const classNames = [
+              'grid-token',
+              item.isBinary ? 'binary' : 'decimal',
+              isSymStyle ? 'symbol' : 'interactive',
+              shouldHide ? 'hidden' : '',
+              isBoxed ? 'boxed' : '',
+              isOrthogonalMP ? 'mp-orthogonal' : ''
+            ].join(' ');
 
             return (
               <div
                 key={`${selectionKey}-${i}`}
+                className={classNames}
                 onMouseDown={() => { if(!isSymStyle && !shouldHide) { setIsDragging(true); handleInteraction(item); }}}
                 onMouseEnter={() => { if (isDragging && !isSymStyle && !shouldHide) handleInteraction(item); }}
                 style={{
-                  minWidth: isSymStyle ? 'auto' : '32px', height: '32px', padding: isSymStyle ? '0 8px' : '0',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: highlight || (isSymStyle || shouldHide ? 'transparent' : '#2a2a2a'),
-                  borderRadius: item.isBinary ? '50%' : '4px',
-                  fontSize: isSymStyle ? '0.85rem' : (item.isBinary ? '0.9rem' : '1.1rem'),
-                  fontWeight: 'bold', color: isSymStyle ? '#555' : 'white',
-                  cursor: (isSymStyle || shouldHide) ? 'default' : 'pointer', userSelect: 'none', 
-                  border: isBoxed ? '2px solid #3b82f6' : (item.isBinary ? '1px solid rgba(255,255,255,0.2)' : 'none'),
-                  boxShadow: isBoxed ? '0 0 8px #3b82f6' : 'none', visibility: shouldHide ? 'hidden' : 'visible'
+                  /* We keep highlightColor inline since it is a dynamic user selection */
+                  backgroundColor: highlightColor || undefined 
                 }}
               >
                 {item.token}
@@ -189,7 +265,6 @@ const GridDisplay = ({ gridType, tokens, selections, setSelections, activeColor,
 // --- GAME COMPONENT ---
 const GameComponent = ({ settings }) => {
   // 1. Move constant data to the top
-  const SYMBOLS = ["=", "×", "+", "row:", "col:", "⬡", "Layer", " "];
   const wordVal = ZODIAC_MAPS[settings.language][settings.word];
 
   // 2. State
@@ -210,20 +285,30 @@ const GameComponent = ({ settings }) => {
   }, [wordVal, settings.gridTypes]);
 
   // 4. Memos
-  const decPermutations = useMemo(() => getPermutations(wordVal.toString()).slice(0, 6), [wordVal]);
-
   const boxedData = useMemo(() => {
     const boxedKeys = Object.keys(boxSelections);
     if (boxedKeys.length === 0) return null;
     const [gridType] = boxedKeys[0].split('-');
-    const binaryString = Object.values(boxSelections).join('');
-    const binaryPerms = getPermutations(binaryString);
-    const decimalPerms = binaryPerms.map(bin => parseInt(bin, 2).toString());
+
+    const sortedKeys = boxedKeys.sort((a, b) => {
+      const [, aBase, aSub] = a.split('-').map(Number);
+      const [, bBase, bSub] = b.split('-').map(Number);
+      return aBase !== bBase ? aBase - bBase : aSub - bSub;
+    });
+
+    const binaryString = sortedKeys.map(k => boxSelections[k]).join('');
+    
+    const allPerms = getPermutations(binaryString);
+
+    const validBinaryStrings = allPerms.filter(bin => 
+      bin.length === 1 || !bin.startsWith('0')
+    );
+
+    const decimalPerms = validBinaryStrings.map(bin => parseInt(bin, 2).toString());
 
     return {
       gridType,
       binaryString,
-      currentDecimal: parseInt(binaryString, 2).toString(),
       perms: Array.from(new Set(decimalPerms)).sort((a, b) => b - a)
     };
   }, [boxSelections]);
@@ -245,107 +330,136 @@ const GameComponent = ({ settings }) => {
   };
 
   const handlePermutationClick = (targetDecimal) => {
-  if (!boxedData) return;
-  const { gridType } = boxedData;
-  const currentTokens = [...gridTokens[gridType]];
+    if (!boxedData) return;
+    const { gridType } = boxedData;
+    const currentTokens = [...gridTokens[gridType]];
 
-  // 1. Group selections by base index
-  const selectionsByIndex = Object.keys(boxSelections).reduce((acc, key) => {
-    const [_, baseIdx, subIdx] = key.split('-').map(Number);
-    if (!acc[baseIdx]) acc[baseIdx] = [];
-    acc[baseIdx].push(subIdx);
-    return acc;
-  }, {});
+    const selectionsByIndex = Object.keys(boxSelections).reduce((acc, key) => {
+      const [_, baseIdx, subIdx] = key.split('-').map(Number);
+      if (!acc[baseIdx]) acc[baseIdx] = [];
+      acc[baseIdx].push(subIdx);
+      return acc;
+    }, {});
 
-  const involvedIndices = Object.keys(selectionsByIndex).map(Number).sort((a, b) => a - b);
-  const firstIdx = involvedIndices[0];
+    const involvedIndices = Object.keys(selectionsByIndex).map(Number).sort((a, b) => a - b);
+    const firstIdx = involvedIndices[0];
 
-  let newTokens = [];
-  let newBinaryFlags = {};
+    let newTokens = [];
+    let newBinaryFlags = {};
 
-  currentTokens.forEach((token, idx) => {
-    if (involvedIndices.includes(idx)) {
-      const fullBin = parseInt(token).toString(2);
-      const selectedSubs = selectionsByIndex[idx];
-      
-      // If it's the first involved index, put the targetDecimal here
-      if (idx === firstIdx) {
-        newTokens.push(targetDecimal);
-        // The new decimal is NOT binary by default
+    currentTokens.forEach((item, idx) => {
+      // Determine the raw value (works if item is an object or a legacy string)
+      const currentVal = item?.token !== undefined ? item.token : item;
+
+      if (involvedIndices.includes(idx)) {
+        const fullBin = parseInt(currentVal).toString(2);
+        const selectedSubs = selectionsByIndex[idx];
+        
+        // 1. Place the converted Decimal result at the first available slot
+        if (idx === firstIdx) {
+          newTokens.push({
+            token: targetDecimal,
+            stableId: `conv-dec-${gridType}-${idx}-${Date.now()}`,
+            originalDigit: targetDecimal,
+            isSymbol: false
+          });
+        }
+
+        // 2. Map remaining bits individually as new Objects to preserve them
+        const remainingBitsArray = fullBin.split('').filter((_, sub) => !selectedSubs.includes(sub));
+        
+        remainingBitsArray.forEach((bit, bIdx) => {
+          newTokens.push({
+            token: bit,
+            stableId: `leftover-${gridType}-${idx}-${bIdx}-${Date.now()}`,
+            originalDigit: bit,
+            isSymbol: false
+          });
+          // Flag as binary so it renders as a circle
+          newBinaryFlags[newTokens.length - 1] = true;
+        });
+      } else {
+        // 3. Keep existing token object
+        newTokens.push(item);
+        if (binaryMaps[`${gridType}-${idx}`]) {
+          newBinaryFlags[newTokens.length - 1] = true;
+        }
       }
-
-      // Calculate what remains of this specific token
-      const remainingBits = fullBin.split('').filter((_, sub) => !selectedSubs.includes(sub)).join('');
-      
-      if (remainingBits.length > 0) {
-        const leftoverVal = parseInt(remainingBits, 2).toString();
-        newTokens.push(leftoverVal);
-        // Flag this leftover piece as binary so it stays '100'
-        newBinaryFlags[newTokens.length - 1] = true;
-      }
-    } else {
-      // Keep unrelated tokens
-      newTokens.push(token);
-      if (binaryMaps[`${gridType}-${idx}`]) {
-        newBinaryFlags[newTokens.length - 1] = true;
-      }
-    }
-  });
-
-  // 2. Sync States
-  setGridTokens(prev => ({ ...prev, [gridType]: newTokens }));
-  setBoxSelections({});
-  
-  // Update binary maps to match the new indices
-  setBinaryMaps(prev => {
-    const next = {};
-    Object.keys(newBinaryFlags).forEach(newIdx => {
-      next[`${gridType}-${newIdx}`] = true;
     });
-    return next;
-  });
-};
+
+    setGridTokens(prev => ({ ...prev, [gridType]: newTokens }));
+    setBoxSelections({});
+    
+    setBinaryMaps(prev => {
+      const next = {};
+      // Carry over binary maps for other grids
+      Object.keys(prev).forEach(k => {
+        if (!k.startsWith(gridType)) next[k] = prev[k];
+      });
+      // Apply new flags for the updated indices in this grid
+      Object.keys(newBinaryFlags).forEach(newIdx => {
+        next[`${gridType}-${newIdx}`] = true;
+      });
+      return next;
+    });
+  };
   
   const clearAllHighlights = () => setSelections({});
-  const revertAllToDecimal = () => { setBinaryMaps({}); setBoxSelections({}); };
+  
+  const { results: matchResults, colorDigitMap } = useMemo(() => {
+    const colorMap = {};
+    PALETTE.forEach(c => colorMap[c] = []);
 
-  const matchResults = useMemo(() => {
-    const colorDigitMap = {};
-    PALETTE.forEach(c => colorDigitMap[c] = []);
-
+    // 1. Collect all currently highlighted digits across all grids
     settings.gridTypes.forEach(type => {
       const tokens = gridTokens[type] || [];
       const gridSelections = selections[type] || {};
       
-      tokens.forEach((token, baseIdx) => {
-        if (token === null || SYMBOLS.includes(token)) return;
-        const isBin = binaryMaps[`${type}-${baseIdx}`];
-        const chars = isBin ? parseInt(token).toString(2).split('') : token.toString().split('');
-        chars.forEach((char, subIdx) => {
-          const color = gridSelections[`${baseIdx}-${subIdx}`];
-          if (color && PALETTE.includes(color)) colorDigitMap[color].push(char);
-        });
+      tokens.forEach((item) => {
+        // SAFETY: Ignore nulls (newlines) or items without IDs
+        if (!item || !item.stableId) return;
+
+        const color = gridSelections[item.stableId];
+        
+        if (color && PALETTE.includes(color)) {
+          // Push the original digit so the Constant Card can "claim" it
+          colorMap[color].push(item.originalDigit); 
+        }
       });
     });
 
-    return Object.entries(CONSTANTS).flatMap(([category, group]) => 
-      Object.entries(group).map(([symbol, value]) => {
-        const targetDigits = value.toString().replace(/[^0-9]/g, '').split('');
-        let bestColor = null; let maxPercent = 0;
+    // 2. Calculate matches for the Constant Cards
+    const results = Object.entries(CONSTANTS).flatMap(([category, group]) => 
+      Object.entries(group).map(([symbol, data]) => {
+        const combinedString = (data.val || "") + (data.mult || "") + (data.exp || "");
+        const targetDigits = combinedString.replace(/[^0-9]/g, '').split('');
+        
+        let bestColor = null; 
+        let maxPercent = 0;
+
         PALETTE.forEach(color => {
-          const userBank = [...colorDigitMap[color]]; 
+          const userBank = [...(colorMap[color] || [])]; 
           let matches = 0;
           targetDigits.forEach(digit => {
             const idx = userBank.indexOf(digit);
-            if (idx !== -1) { matches++; userBank.splice(idx, 1); }
+            if (idx !== -1) { 
+              matches++; 
+              userBank.splice(idx, 1); 
+            }
           });
           const percent = targetDigits.length > 0 ? (matches / targetDigits.length) * 100 : 0;
-          if (percent > maxPercent) { maxPercent = percent; bestColor = color; }
+          if (percent > maxPercent) { 
+            maxPercent = percent; 
+            bestColor = color; 
+          }
         });
-        return { symbol, value, percent: maxPercent, dominantColor: bestColor || '#333', category };
+
+        return { symbol, data, percent: maxPercent, dominantColor: bestColor || '#333', category };
       })
     ).sort((a, b) => b.percent - a.percent);
-  }, [selections, binaryMaps, gridTokens, settings.gridTypes, wordVal, SYMBOLS]);
+
+    return { results, colorDigitMap: colorMap };
+  }, [selections, gridTokens, settings.gridTypes]);
 
   const avgMatch = matchResults.reduce((acc, curr) => acc + curr.percent, 0) / matchResults.length;
   const brightness = 26 + (avgMatch * 0.4);
@@ -394,12 +508,91 @@ const GameComponent = ({ settings }) => {
               </div>
             </div>
           )}
-          {matchResults.map((m, i) => (
-            <div key={i} style={{ padding: '18px', borderRadius: '10px', background: m.percent > 0 ? `${m.dominantColor}22` : 'rgba(255,255,255,0.03)', marginBottom: '15px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{m.symbol}</span><span style={{ fontSize: '0.9rem', opacity: 0.8 }}>{m.percent.toFixed(1)}%</span></div>
-              <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '8px' }}>{m.value}</div>
-            </div>
-          ))}
+          {matchResults.map((m, i) => {
+            const isPerfect = m.percent === 100;
+            
+            // 1. Define the Keyframes once (at the start of the map)
+            const shimmerKeyframes = `
+              @keyframes shimmer {
+                0% { background-position: -200% 0; }
+                100% { background-position: 200% 0; }
+              }
+            `;
+
+            const userBank = [...(colorDigitMap[m.dominantColor] || [])];
+            
+            const renderDigits = (str) => {
+              if (!str) return null;
+              return str.split('').map((char, idx) => {
+                const isDigit = /[0-9]/.test(char);
+                let color = 'rgba(255,255,255,0.3)'; 
+                if (isDigit) {
+                  const bankIdx = userBank.indexOf(char);
+                  if (bankIdx !== -1) {
+                    color = '#ffffff'; 
+                    userBank.splice(bankIdx, 1); 
+                  }
+                }
+                return <span key={idx} style={{ color, transition: 'color 0.2s' }}>{char}</span>;
+              });
+            };
+
+            // 2. Conditional Styles for the 100% match
+            const cardStyle = {
+              padding: '18px',
+              borderRadius: '10px',
+              marginBottom: '15px',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.4s ease',
+              border: isPerfect ? `1px solid ${m.dominantColor}` : '1px solid rgba(255,255,255,0.05)',
+              boxShadow: isPerfect ? `0 0 15px ${m.dominantColor}40` : 'none',
+              // If perfect, use a gradient background for the shimmer, otherwise use the tinted alpha
+              background: isPerfect 
+                ? `linear-gradient(90deg, ${m.dominantColor}15 0%, ${m.dominantColor}40 50%, ${m.dominantColor}15 100%)` 
+                : (m.percent > 0 ? `${m.dominantColor}15` : 'rgba(255,255,255,0.03)'),
+              backgroundSize: isPerfect ? '200% 100%' : 'auto',
+              animation: isPerfect ? 'shimmer 2s infinite linear' : 'none'
+            };
+
+            return (
+              <div key={i} style={cardStyle}>
+                {/* Injecting the style tag so the animation works */}
+                {i === 0 && <style>{shimmerKeyframes}</style>}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'white' }}>{m.symbol}</span>
+                  <span style={{ 
+                    fontSize: '0.8rem', 
+                    color: isPerfect ? '#fff' : m.dominantColor, 
+                    fontWeight: 'bold',
+                    textShadow: isPerfect ? `0 0 10px ${m.dominantColor}` : 'none' 
+                  }}>
+                    {m.percent.toFixed(1)}% {isPerfect && '★'}
+                  </span>
+                </div>
+
+                <div style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '1rem', position: 'relative', zIndex: 1 }}>
+                  {renderDigits(m.data.val)}
+                  {m.data.mult && (
+                    <>
+                      <span style={{ color: 'rgba(255,255,255,0.3)' }}>{" × "}</span>
+                      <span style={{ position: 'relative' }}>
+                        {renderDigits(m.data.mult)}
+                        <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>
+                          <span style={{ color: 'rgba(255,255,255,0.3)' }}>{m.data.sign}</span>
+                          {renderDigits(m.data.exp)}
+                        </sup>
+                      </span>
+                    </>
+                  )}
+                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginLeft: '10px' }}>
+                    {m.data.unit}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
