@@ -62,7 +62,13 @@ const digitize = (value) => {
   if (value === null) return [null];
   if (value === " ") return [" "]; 
   if (["row:", "col:", "Layer"].includes(value)) return [value];
+  
   if (typeof value === 'number') return value.toString().split('');
+  
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return value.split('');
+  }
+
   return [value.toString()];
 };
 
@@ -90,13 +96,19 @@ const getSquareShellData = (n) => {
   const prod = R * C;
   const sum = R + C;
 
-  // Preserve your dynamic spacers logic
+  // Calculate string lengths for padding
+  let prodStr = prod.toString();
+  let sumStr = sum.toString();
+  if (sumStr.length < prodStr.length) {
+    sumStr = sumStr.padStart(prodStr.length, '0');
+  }
+
   const spacers = [...Array(R.toString().length).fill(" "), "×", ...Array(C.toString().length).fill(" "), "="];
 
   const lines = [
     [n, "=", k, "×", k, "+", offset, "row:", R, "col:", C],
-    [C, "×", R, "=", prod],
-    [C, "+", R, "=", sum],
+    [C, "×", R, "=", prodStr],
+    [C, "+", R, "=", sumStr],
     [...spacers, prod + sum] 
   ];
 
@@ -105,13 +117,12 @@ const getSquareShellData = (n) => {
       const chars = digitize(val);
       return chars.map((char, charIdx) => ({
         token: char,
-        // The ID includes the line index and value index so it stays unique but predictable
         stableId: `sq-${lineIdx}-${valIdx}-${charIdx}`, 
         originalDigit: char,
         isSymbol: SYMBOLS.includes(char)
       }));
     }),
-    null // Newline marker
+    null 
   ]);
 };
 
@@ -499,33 +510,47 @@ const GameComponent = ({ settings, setStep }) => {
   const brightness = 26 + (avgMatch * 0.4);
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px', fontFamily: 'monospace', color: 'white', backgroundColor: '#1a1a1a', minHeight: '100vh', width: '100%' }} onMouseUp={() => setIsDragging(false)}>
-      <div style={{ display: 'flex', flexDirection: 'row', gap: '60px', alignItems: 'flex-start' }}>
-        <div style={{ width: '600px' }}>
-          <div style={{ marginBottom: '40px' }}>
-            <h2 style={{ margin: 0, letterSpacing: '1px', fontSize: '2rem' }}>{settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})</h2>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '50px' }}>
-            {settings.gridTypes.map(type => (
-              <div key={type}>
-                <h5 style={{ color: '#444', marginBottom: '15px', fontSize: '0.8rem', letterSpacing: '2px' }}>{type.toUpperCase()}</h5>
-                <GridDisplay
-                  gridType={type} tokens={gridTokens[type]} selections={selections} setSelections={setSelections}
-                  binaryMaps={binaryMaps} setBinaryMaps={setBinaryMaps} activeColor={activeColor}
-                  boxSelections={boxSelections} setBoxSelections={setBoxSelections}
-                  isDragging={isDragging} setIsDragging={setIsDragging} SYMBOLS={SYMBOLS}
-                />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px', fontFamily: 'monospace', color: 'white', backgroundColor: '#1a1a1a', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }} onMouseUp={() => setIsDragging(false)}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '60px', alignItems: 'flex-start', maxWidth: '1400px', width: '100%' }}>
+          {/* --- LEFT AREA: SCROLLABLE COLUMN --- */}
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ marginBottom: '40px' }}>
+              <h2 style={{ margin: 0, letterSpacing: '1px', fontSize: '2rem' }}>
+                {settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})
+              </h2>
+            </div>
+            {/* This wrapper provides the X-Scroll specifically for the grids */}
+            <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'thin', scrollbarColor: '#444 transparent' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '50px', width: 'fit-content' }}>
+                {settings.gridTypes.map(type => (
+                  <div key={type}>
+                    <h5 style={{ color: '#444', marginBottom: '15px', fontSize: '0.8rem', letterSpacing: '2px' }}>
+                      {type.toUpperCase()}
+                    </h5>
+                    <GridDisplay
+                      gridType={type} tokens={gridTokens[type]} selections={selections} setSelections={setSelections}
+                      binaryMaps={binaryMaps} setBinaryMaps={setBinaryMaps} activeColor={activeColor}
+                      boxSelections={boxSelections} setBoxSelections={setBoxSelections}
+                      isDragging={isDragging} setIsDragging={setIsDragging} SYMBOLS={SYMBOLS}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Buttons remain visible below the scrollable area */}
+            <div style={{ marginTop: '40px', display: 'flex', gap: '15px', borderTop: '1px solid #333', paddingTop: '20px' }}>
+              <button onClick={() => setStep('TOPIC')} style={resetBtnStyle}>Home</button>
+              <button onClick={clearAllHighlights} style={resetBtnStyle}>Clear All Highlights</button>
+              <button onClick={resetToOriginal} style={resetBtnStyle}>Reset</button>
+              <button onClick={handleSubmitScore} style={{ ...resetBtnStyle, marginLeft: 'auto'}}>Submit Scores</button>
+            </div>
           </div>
-          <div style={{ marginTop: '40px', display: 'flex', gap: '15px', borderTop: '1px solid #333', paddingTop: '20px' }}>
-            <button onClick={() => setStep('TOPIC')} style={resetBtnStyle}>Home</button>
-            <button onClick={clearAllHighlights} style={resetBtnStyle}>Clear All Highlights</button>
-            <button onClick={resetToOriginal} style={resetBtnStyle}>Reset</button>
-            <button onClick={handleSubmitScore} style={{ ...resetBtnStyle, marginLeft: 'auto'}}>Submit Scores</button>
-          </div>
-        </div>
-        <div style={{ width: '420px', backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})`, padding: '25px', borderRadius: '16px', maxHeight: '85vh', overflowY: 'auto', position: 'sticky', top: '40px', border: '1px solid rgba(255,255,255,0.1)' }}>
+
+          {/* --- RIGHT AREA: STICKY PANEL --- */}
+          <div style={{ width: '420px', flexShrink: 0, backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})`, padding: '25px', borderRadius: '16px', 
+            maxHeight: '85vh', overflowY: 'auto', position: 'sticky', top: '40px', border: '1px solid rgba(255,255,255,0.1)', zIndex: 10
+          }}>
           <div style={{ display: 'flex', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '15px', borderRadius: '10px', marginBottom: '20px', alignItems: 'center', justifyContent: 'center' }}>
             {PALETTE.map(color => (
               <div key={color} onClick={() => setActiveColor(color)} style={{ width: '28px', height: '28px', backgroundColor: color, borderRadius: '50%', cursor: 'pointer', border: activeColor === color ? '2px solid white' : 'none' }} />
