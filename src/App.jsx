@@ -16,40 +16,41 @@ const ZODIAC_NAMES = {
 
 const CONSTANTS = {
   PLANCK: {
-    "ℏ": { val: "1.054571817", mult: "10", sign: "-", exp: "34", unit: " J·s" },
-    "ℎ": { val: "6.6260", mult: "10", sign: "-", exp: "34", unit: " J·s" },
-    "ℏ/c^2": { val: "1.173369", mult: "10", sign: "-", exp: "51", unit: " kg·m/s" },
-    "ℎ/c^2": { val: "7.3724192313", mult: "10", sign: "-", exp: "51", unit: " kg·m/s" }
+    "ℏ": { sign:"", val: "1.054571817", mult: "10", mag: "-", exp: "34", unit: " J·s" },
+    "ℎ": { sign:"", val: "6.6260", mult: "10", mag: "-", exp: "34", unit: " J·s" },
+    "ℏ/c^2": { sign:"", val: "1.173369", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
+    "ℎ/c^2": { sign:"", val: "7.3724192313", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
+    "2×π": {sign:"", val: "2*3.1415926535", multi: "", mag: "", exp: "", unit: ""}
   },
   LIGHT: {
-    "c^2": { val: "8.9875517873681764", mult: "10", sign: "", exp: "16", unit: " m²/s²" },
-    "c": { val: "299792458", mult: "", sign: "", exp: "", unit: " m/s" },
-    "1/c": { val: "3.3335640951", mult: "10", sign: "-", exp: "9", unit: " s/m" },
-    "(1/c)^2": { val: "1.11265005", mult: "10", sign: "-", exp: "17", unit: " s²/m²" },
-    "(1/c)^4": { val: "1.2379901472", mult: "10", sign: "-", exp: "34", unit: " s²/m²" }
+    "c^2": { sign:"", val: "8.9875517873681764", mult: "10", mag: "", exp: "16", unit: " m²/s²" },
+    "c": { sign:"", val: "299792458", mult: "", mag: "", exp: "", unit: " m/s" },
+    "1/c": { sign:"", val: "3.3335640951", mult: "10", mag: "-", exp: "9", unit: " s/m" },
+    "(1/c)^2": { sign:"", val: "1.11265005", mult: "10", mag: "-", exp: "17", unit: " s²/m²" },
+    "(1/c)^4": { sign:"", val: "1.2379901472", mult: "10", mag: "-", exp: "34", unit: " s²/m²" }
   },
   GRAVITY: {
-    "G": { val: "6.6743", mult: "10", sign: "-", exp: "11", unit: " m³/kg·s²" },
-    "κ": { val: "2.076647", mult: "10", sign: "-", exp: "43", unit: " s²/m·kg" },
-    "G^2": { val: "4.454628049", mult: "10", sign: "-", exp: "21", unit: " m⁶/kg²·s⁴" }
+    "G": { sign:"", val: "6.6743", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },
+    "κ": { sign:"", val: "2.076647", mult: "10", mag: "-", exp: "43", unit: " s²/m·kg" },
+    "G^2": { sign:"", val: "4.454628049", mult: "10", mag: "-", exp: "21", unit: " m⁶/kg²·s⁴" }
   },
   FINE_STRUCTURE: {
-    "1/α": { val: "137.035999", mult: "", sign: "", exp: "", unit: "" },
-    "α": { val: "7.297352", mult: "10", sign: "-", exp: "3", unit: "" },
-    "√α": { val: "8.542453", mult: "10", sign: "-", exp: "2", unit: "" },
-    "√(1/α)": { val: "11.706237", mult: "", sign: "", exp: "", unit: "" }
+    "1/α": { sign:"", val: "137.035999", mult: "", mag: "", exp: "", unit: "" },
+    "α": { sign:"", val: "7.297352", mult: "10", mag: "-", exp: "3", unit: "" },
+    "√α": { sign:"", val: "8.542453", mult: "10", mag: "-", exp: "2", unit: "" },
+    "√(1/α)": { sign:"", val: "11.706237", mult: "", mag: "", exp: "", unit: "" }
   },
   MAGNETIC: {
-    "μ0": { val: "1.25663706", mult: "10", sign: "-", exp: "6", unit: " N/A²" }
+    "μ0": { sign:"", val: "1.25663706", mult: "10", mag: "-", exp: "6", unit: " N/A²" }
   },
   ELECTRIC: {
-    "ε0": { val: "8.85418782", mult: "10", sign: "-", exp: "12", unit: " F/m" }
+    "ε0": { sign:"", val: "8.85418782", mult: "10", mag: "-", exp: "12", unit: " F/m" }
   },
   BOLTZMANN: {
-    "kB": { val: "1.380649", mult: "10", sign: "-", exp: "23", unit: " J/K" }
+    "kB": { sign:"", val: "1.380649", mult: "10", mag: "-", exp: "23", unit: " J/K" }
   },
   TEMPERATURE: {
-    "T": { val: "273.15", mult: "", sign: "", exp: "", unit: " K" }
+    "T": { sign:"-", val: "273.15", mult: "", mag: "", exp: "", unit: " °C" }
   }
 };
 
@@ -277,7 +278,13 @@ const GameComponent = ({ settings, setStep }) => {
   const [gridTokens, setGridTokens] = useState({}); 
   const handleSubmitScore = async () => {
     try {
-      // We create a clean list of just the symbol and the percentage
+      const selectionsArray = Object.values(selections).flatMap(gridMap => Object.keys(gridMap));
+      const allGridTokens = Object.values(gridTokens).flat();
+      
+      const remainingDigits = allGridTokens
+        .filter(token => token && token.stableId && !token.isSymbol && !selectionsArray.includes(token.stableId))
+        .map(token => token.originalDigit || token.token);
+
       const performance = matchResults.map(m => ({
         symbol: m.symbol,
         percent: m.percent.toFixed(1)
@@ -287,12 +294,14 @@ const GameComponent = ({ settings, setStep }) => {
         topic: settings.topic || "General",
         word: settings.word,
         language: settings.language,
-        results: performance, // This is your list of constant percentages
+        grids: settings.gridTypes, // <--- Add this line
+        results: performance,
+        unusedDigits: remainingDigits,
         timestamp: serverTimestamp(), 
       };
 
       await addDoc(collection(db, "highscores"), highscoreData);
-      alert("Percentages submitted to Highscores!");
+      alert("Score submitted successfully!");
       setStep('TOPIC'); 
     } catch (e) {
       console.error("Error adding document: ", e);
@@ -456,7 +465,7 @@ const GameComponent = ({ settings, setStep }) => {
     // 2. Calculate matches for the Constant Cards
     const results = Object.entries(CONSTANTS).flatMap(([category, group]) => 
       Object.entries(group).map(([symbol, data]) => {
-        const combinedString = (data.val || "") + (data.mult || "") + (data.exp || "");
+        const combinedString = (data.sign || "") + (data.val || "") + (data.mult || "") + (data.exp || "");
         const targetDigits = combinedString.replace(/[^0-9]/g, '').split('');
         
         let bestColor = null; 
@@ -552,14 +561,20 @@ const GameComponent = ({ settings, setStep }) => {
               if (!str) return null;
               return str.split('').map((char, idx) => {
                 const isDigit = /[0-9]/.test(char);
+                const isSymbol = /[-+×]/.test(char); // Check for math symbols
+                
                 let color = 'rgba(255,255,255,0.3)'; 
+                
                 if (isDigit) {
                   const bankIdx = userBank.indexOf(char);
                   if (bankIdx !== -1) {
                     color = '#ffffff'; 
                     userBank.splice(bankIdx, 1); 
                   }
+                } else if (isSymbol) {
+                  color = '#ffffff'; // Keep signs bright for readability
                 }
+                
                 return <span key={idx} style={{ color, transition: 'color 0.2s' }}>{char}</span>;
               });
             };
@@ -574,10 +589,10 @@ const GameComponent = ({ settings, setStep }) => {
               transition: 'all 0.4s ease',
               border: isPerfect ? `1px solid ${m.dominantColor}` : '1px solid rgba(255,255,255,0.05)',
               boxShadow: isPerfect ? `0 0 15px ${m.dominantColor}40` : 'none',
-              // If perfect, use a gradient background for the shimmer, otherwise use the tinted alpha
-              background: isPerfect 
+              backgroundColor: isPerfect ? 'transparent' : (m.percent > 0 ? `${m.dominantColor}15` : 'rgba(255,255,255,0.03)'),
+              backgroundImage: isPerfect 
                 ? `linear-gradient(90deg, ${m.dominantColor}15 0%, ${m.dominantColor}40 50%, ${m.dominantColor}15 100%)` 
-                : (m.percent > 0 ? `${m.dominantColor}15` : 'rgba(255,255,255,0.03)'),
+                : 'none',
               backgroundSize: isPerfect ? '200% 100%' : 'auto',
               animation: isPerfect ? 'shimmer 2s infinite linear' : 'none'
             };
@@ -600,20 +615,21 @@ const GameComponent = ({ settings, setStep }) => {
                 </div>
 
                 <div style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '1rem', position: 'relative', zIndex: 1 }}>
-                  {renderDigits(m.data.val)}
+                  {renderDigits((m.data.sign || "") + m.data.val)}
                   {m.data.mult && (
                     <>
                       <span style={{ color: 'rgba(255,255,255,0.3)' }}>{" × "}</span>
                       <span style={{ position: 'relative' }}>
                         {renderDigits(m.data.mult)}
                         <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>
-                          <span style={{ color: 'rgba(255,255,255,0.3)' }}>{m.data.sign}</span>
+                          <span style={{ color: 'rgba(255,255,255,0.3)' }}>{m.data.mag}</span>
                           {renderDigits(m.data.exp)}
                         </sup>
                       </span>
                     </>
                   )}
-                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginLeft: '10px' }}>
+
+                  <span style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.3)', marginLeft: '10px' }}>
                     {m.data.unit}
                   </span>
                 </div>
@@ -718,17 +734,25 @@ function HighscoresView({ onBack }) {
     fetchScores();
   }, []);
 
+  const cellStyle = { padding: '12px', verticalAlign: 'middle' };
+  const badgeStyle = { 
+    fontSize: '0.55rem', background: '#333', color: '#888', 
+    padding: '2px 6px', borderRadius: '4px', border: '1px solid #444',
+    textTransform: 'uppercase', letterSpacing: '0.5px' 
+  };
+
   return (
     <div style={{ textAlign: 'center', paddingTop: '60px', color: 'white' }}>
       <h2>Recent Achievements</h2>
       {loading ? <p>Loading...</p> : (
-        <div style={{ maxWidth: '800px', margin: '20px auto', background: '#222', padding: '20px', borderRadius: '12px' }}>
+        <div style={{ maxWidth: '950px', margin: '20px auto', background: '#222', padding: '20px', borderRadius: '12px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #444', color: '#888', fontSize: '0.7rem' }}>
                 <th style={{ padding: '10px' }}>TOPIC</th>
-                <th style={{ padding: '10px' }}>WORD</th>
+                <th style={{ padding: '10px' }}>WORD / GRID</th>
                 <th style={{ padding: '10px' }}>MATCHES</th>
+                <th style={{ padding: '10px' }}>REMAINING</th>
                 <th style={{ padding: '10px' }}>DATE</th>
               </tr>
             </thead>
@@ -736,29 +760,37 @@ function HighscoresView({ onBack }) {
               {scores.map(s => (
                 <tr key={s.id} style={{ borderBottom: '1px solid #333' }}>
                   {/* 1. TOPIC */}
-                  <td style={{ padding: '12px', fontSize: '0.8rem', color: '#888' }}>{s.topic || "General"}</td>
+                  <td style={{ ...cellStyle, fontSize: '0.8rem', color: '#888' }}>{s.topic}</td>
                   
-                  {/* 2. WORD & LANG */}
-                  <td style={{ padding: '12px' }}>
+                  {/* 2. WORD & GRID INFO */}
+                  <td style={cellStyle}>
                     <div style={{ fontWeight: 'bold' }}>{s.word}</div>
                     <div style={{ fontSize: '0.7rem', color: '#666' }}>{s.language}</div>
-                  </td>
-
-                  {/* 3. LIST OF CONSTANTS */}
-                  <td style={{ padding: '12px', fontSize: '0.75rem' }}>
-                    {s.results && s.results.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
-                        {s.results.slice(0, 3).map((res, idx) => (
-                          <div key={idx} style={{ color: parseFloat(res.percent) >= 90 ? '#4ade80' : '#aaa' }}>
-                            {res.symbol}: <strong>{res.percent}%</strong>
-                          </div>
-                        ))}
+                    {s.grids?.length > 0 && (
+                      <div style={{ display: 'flex', gap: '4px', marginTop: '6px', justifyContent: 'center' }}>
+                        {s.grids.map((g, idx) => <span key={idx} style={badgeStyle}>{g}</span>)}
                       </div>
-                    ) : "--"}
+                    )}
                   </td>
 
-                  {/* 4. DATE */}
-                  <td style={{ padding: '12px', fontSize: '0.7rem', color: '#666' }}>
+                  {/* 3. MATCHES */}
+                  <td style={cellStyle}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', fontSize: '0.75rem' }}>
+                      {s.results?.slice(0, 3).map((res, idx) => (
+                        <div key={idx} style={{ color: parseFloat(res.percent) >= 90 ? '#4ade80' : '#aaa' }}>
+                          {res.symbol}: <strong>{res.percent}%</strong>
+                        </div>
+                      )) || "--"}
+                    </div>
+                  </td>
+
+                  {/* 4. REMAINING */}
+                  <td style={{ ...cellStyle, fontSize: '0.7rem', color: '#555', maxWidth: '150px', wordWrap: 'break-word', fontFamily: 'monospace' }}>
+                    {s.unusedDigits?.length > 0 ? s.unusedDigits.join(', ') : "None"}
+                  </td>
+
+                  {/* 5. DATE */}
+                  <td style={{ ...cellStyle, fontSize: '0.7rem', color: '#666' }}>
                     {s.timestamp ? s.timestamp.toDate().toLocaleDateString() : 'Recent'}
                   </td>
                 </tr>
