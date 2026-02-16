@@ -14,13 +14,22 @@ const ZODIAC_NAMES = {
   "Ancient Greek": {"Rat": "μῦς", "Ox":"βοῦς", "Tiger":"Τίγρις", "Rabbit":"κόνικλος", "Dragon":"δράκων", "Snake":"ὄφις", "Horse":"ἵππος", "Goat":"αἴξ", "Monkey":"πίθηκος", "Rooster":"ἀλέκτωρ", "Dog":"Κύων", "Pig":"σῦς"}
 };
 
+const EQUATION_SETS = [
+  { id: "reduced_planck", members: ["ℎ", "ℏ", "2π"]},
+  { id: "mass_energy_equivalence", members: ["(1/c)^2", "ℏ", "ℏ/c^2"]},
+  { id: "newtonian_gravity", members: ["G", "κ", "c^2"]},
+  /*
+  { id: "fine_structure", members: ["α", "1/α", "μ0", "ε0", "c"] },
+  { id: "quantum_gravity", members: ["G", "ℏ", "c"] }*/
+];
+
 const CONSTANTS = {
   PLANCK: {
     "ℏ": { sign:"", val: "1.054571817", mult: "10", mag: "-", exp: "34", unit: " J·s" },
     "ℎ": { sign:"", val: "6.6260", mult: "10", mag: "-", exp: "34", unit: " J·s" },
     "ℏ/c^2": { sign:"", val: "1.173369", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
     "ℎ/c^2": { sign:"", val: "7.3724192313", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
-    "2×π": {sign:"", val: "2*3.1415926535", multi: "", mag: "", exp: "", unit: ""}
+    "2π": {sign:"", val: "2*3.1415926535", multi: "", mag: "", exp: "", unit: ""}
   },
   LIGHT: {
     "c^2": { sign:"", val: "8.9875517873681764", mult: "10", mag: "", exp: "16", unit: " m²/s²" },
@@ -31,6 +40,7 @@ const CONSTANTS = {
   },
   GRAVITY: {
     "G": { sign:"", val: "6.6743", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },
+    "F": { sign:"", val: "6.6743", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },
     "κ": { sign:"", val: "2.076647", mult: "10", mag: "-", exp: "43", unit: " s²/m·kg" },
     "G^2": { sign:"", val: "4.454628049", mult: "10", mag: "-", exp: "21", unit: " m⁶/kg²·s⁴" }
   },
@@ -287,6 +297,22 @@ const GameComponent = ({ settings, setStep }) => {
   const [activeColor, setActiveColor] = useState(PALETTE[0]);
   const [isDragging, setIsDragging] = useState(false);
   const [gridTokens, setGridTokens] = useState({}); 
+  const [cardOverrides, setCardOverrides] = useState({}); // { symbol: { isOrganized: bool, isRounded: bool } }
+
+  const handleRoundClick = (symbol) => {
+    setCardOverrides(prev => ({
+      ...prev,
+      [symbol]: { ...prev[symbol], isOrganized: !prev[symbol]?.isOrganized }
+    }));
+  };
+
+  const handlePruneClick = (symbol) => {
+    setCardOverrides(prev => ({
+      ...prev,
+      [symbol]: { ...prev[symbol], isRounded: !prev[symbol]?.isRounded }
+    }));
+  };
+
   const handleSubmitScore = async () => {
     try {
       const selectionsArray = Object.values(selections).flatMap(gridMap => Object.keys(gridMap));
@@ -451,63 +477,133 @@ const GameComponent = ({ settings, setStep }) => {
   
   const clearAllHighlights = () => setSelections({});
   
-  const { results: matchResults, colorDigitMap } = useMemo(() => {
+  // --- Updated Math logic in useMemo ---
+  const { results: matchResults, colorDigitMap, symbolsToElevate, activeSetIds } = useMemo(() => {
     const colorMap = {};
     PALETTE.forEach(c => colorMap[c] = []);
 
-    // 1. Collect all currently highlighted digits across all grids
+    // 1. Collect highlighted digits
     settings.gridTypes.forEach(type => {
       const tokens = gridTokens[type] || [];
       const gridSelections = selections[type] || {};
-      
       tokens.forEach((item) => {
-        // SAFETY: Ignore nulls (newlines) or items without IDs
         if (!item || !item.stableId) return;
-
         const color = gridSelections[item.stableId];
-        
         if (color && PALETTE.includes(color)) {
-          // Push the original digit so the Constant Card can "claim" it
           colorMap[color].push(item.originalDigit); 
         }
       });
     });
 
-    // 2. Calculate matches for the Constant Cards
-    const results = Object.entries(CONSTANTS).flatMap(([category, group]) => 
-      Object.entries(group).map(([symbol, data]) => {
-        const combinedString = (data.sign || "") + (data.val || "") + (data.mult || "") + (data.exp || "");
-        const targetDigits = combinedString.replace(/[^0-9]/g, '').split('');
-        
-        let bestColor = null; 
+    // 2. Base Matches with Lookahead Logic
+    const allResults = Object.entries(CONSTANTS).flatMap(([category, group]) => 
+      Object.entries(group).map(([symbol, rawData]) => {
+        const override = cardOverrides[symbol] || {};
+        let data = { ...rawData };
         let maxPercent = 0;
+        let bestColor = null;
 
         PALETTE.forEach(color => {
-          const userBank = [...(colorMap[color] || [])]; 
+          let userBank = [...(colorMap[color] || [])];
           let matches = 0;
-          targetDigits.forEach(digit => {
-            const idx = userBank.indexOf(digit);
-            if (idx !== -1) { 
-              matches++; 
-              userBank.splice(idx, 1); 
-            }
+          let totalPotential = 0;
+
+          const segments = [
+            { str: data.val || "", type: 'val' },
+            { str: data.mult || "", type: 'mult' },
+            { str: data.exp || "", type: 'exp' }
+          ];
+
+          // Create lookahead for ORGANIZE logic
+          const futureDigits = (segments[1].str + segments[2].str).replace(/[^0-9]/g, '').split('');
+
+          segments.forEach((segment, sIdx) => {
+            let active = true;
+            segment.str.split('').forEach(char => {
+              const isDigit = /[0-9]/.test(char);
+              if (isDigit) {
+                totalPotential++;
+                const bankIdx = userBank.indexOf(char);
+                const isNeededLater = futureDigits.includes(char);
+
+                if (override.isOrganized) {
+                  if (active && bankIdx !== -1) {
+                    matches++;
+                    userBank.splice(bankIdx, 1);
+                  } else if (active && isNeededLater) {
+                    // Skip in val/mult because we need it later; keep sequence alive
+                    active = true; 
+                  } else {
+                    active = false;
+                  }
+                } else {
+                  if (bankIdx !== -1) {
+                    matches++;
+                    userBank.splice(bankIdx, 1);
+                  }
+                }
+                // Cleanup lookahead as we progress
+                if (sIdx < 2 && isNeededLater) {
+                  const fIdx = futureDigits.indexOf(char);
+                  futureDigits.splice(fIdx, 1);
+                }
+              }
+            });
           });
-          const percent = targetDigits.length > 0 ? (matches / targetDigits.length) * 100 : 0;
-          if (percent > maxPercent) { 
-            maxPercent = percent; 
-            bestColor = color; 
+
+          const percent = totalPotential > 0 ? (matches / totalPotential) * 100 : 0;
+          if (percent > maxPercent) {
+            maxPercent = percent;
+            bestColor = color;
           }
         });
 
+        if (override.isRounded && maxPercent > 0) maxPercent = 100.0;
+
         return { symbol, data, percent: maxPercent, dominantColor: bestColor || '#333', category };
       })
-    ).sort((a, b) => b.percent - a.percent);
+    );
 
-    return { results, colorDigitMap: colorMap };
-  }, [selections, gridTokens, settings.gridTypes]);
+    // 3. Activation Logic (2+ perfect matches in a set)
+  // 3. Activation Logic (2+ perfect matches in a set)
+    const perfectSymbols = allResults.filter(r => r.percent === 100).map(r => r.symbol);
+    const elevated = new Set();
+    const activeIds = [];
+
+    EQUATION_SETS.forEach(set => {
+      const solvedCount = set.members.filter(m => perfectSymbols.includes(m)).length;
+      // Condition: If 2 or more constants in this equation are 100%
+      if (solvedCount >= 2) {
+        activeIds.push(set.id);
+        // Mark ALL members of this equation as "elevated" to bring them to top
+        set.members.forEach(m => elevated.add(m));
+      }
+    });
+
+    // 4. Final Sort
+    const sorted = allResults.sort((a, b) => {
+      const aIsPerfect = a.percent === 100;
+      const bIsPerfect = b.percent === 100;
+      const aIsElevated = elevated.has(a.symbol);
+      const bIsElevated = elevated.has(b.symbol);
+
+      // Tier 1: Perfect matches ALWAYS stay at the very top
+      if (aIsPerfect !== bIsPerfect) return aIsPerfect ? -1 : 1;
+
+      // Tier 2: If neither/both are perfect, prioritize those in an Active Equation Set
+      if (aIsElevated !== bIsElevated) return aIsElevated ? -1 : 1;
+
+      // Tier 3: Within the same tier, sort by percentage descending
+      return b.percent - a.percent;
+    });
+
+    return { results: sorted, colorDigitMap: colorMap, symbolsToElevate: elevated, activeSetIds: activeIds };
+  }, [selections, gridTokens, settings.gridTypes, cardOverrides]);
 
   const avgMatch = matchResults.reduce((acc, curr) => acc + curr.percent, 0) / matchResults.length;
   const brightness = 26 + (avgMatch * 0.4);
+  const toolBtn = { border: 'none', borderRadius: '4px', color: 'white', cursor: 'pointer', fontWeight: 'bold', padding: '6px 10px', fontSize: '0.7rem' };
+  const resetBtnStyle = { backgroundColor: '#2a2a2a', color: '#888', border: '1px solid #444', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' };
 
   return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px', fontFamily: 'monospace', color: 'white', backgroundColor: '#1a1a1a', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }} onMouseUp={() => setIsDragging(false)}>
@@ -571,8 +667,24 @@ const GameComponent = ({ settings, setStep }) => {
           )}
           {matchResults.map((m, i) => {
             const isPerfect = m.percent === 100;
-            
-            // 1. Define the Keyframes once (at the start of the map)
+            const isElevated = symbolsToElevate.has(m.symbol) && !isPerfect;
+            const override = cardOverrides[m.symbol] || {};
+
+            // 1. Updated Badge Style: Monospace font, white color, and inline layout
+            const setBadgeStyle = {
+              fontFamily: 'monospace',
+              fontSize: '1rem', // Match the main digit size
+              color: 'white',   // Changed from black
+              letterSpacing: '1px',
+              display: 'inline-block',
+              textTransform: 'uppercase',
+              marginRight: 'auto' // Push other items away
+            };
+
+            const parentSetName = isElevated 
+              ? EQUATION_SETS.find(s => s.members.includes(m.symbol) && activeSetIds.includes(s.id))?.id 
+              : null;
+                        
             const shimmerKeyframes = `
               @keyframes shimmer {
                 0% { background-position: -200% 0; }
@@ -580,29 +692,62 @@ const GameComponent = ({ settings, setStep }) => {
               }
             `;
 
-            const userBank = [...(colorDigitMap[m.dominantColor] || [])];
+            // We need a fresh bank for the visual renderer
+            const visualBank = [...(colorDigitMap[m.dominantColor] || [])];
             
-            const renderDigits = (str) => {
+            // --- UPDATED RENDERER ---
+            // We track 'active' status to handle the "prioritize/organize" logic visually
+            let isSequenceActive = true; 
+
+            const renderDigits = (str, isExponent = false) => {
               if (!str) return null;
+              
               return str.split('').map((char, idx) => {
                 const isDigit = /[0-9]/.test(char);
-                const isSymbol = /[-+×]/.test(char); // Check for math symbols
+                const isSign = /[-+×.]/.test(char); 
                 
-                let color = 'rgba(255,255,255,0.3)'; 
+                let color = 'rgba(255,255,255,0.15)'; // Default dimmed
+                let textDecoration = 'none';
                 
                 if (isDigit) {
-                  const bankIdx = userBank.indexOf(char);
-                  if (bankIdx !== -1) {
-                    color = '#ffffff'; 
-                    userBank.splice(bankIdx, 1); 
+                  const bankIdx = visualBank.indexOf(char);
+                  
+                  if (override.isOrganized) {
+                    // Prioritize logic: only highlight if we have the digit AND the sequence isn't broken
+                    if (isSequenceActive && bankIdx !== -1) {
+                      color = '#ffffff';
+                      visualBank.splice(bankIdx, 1);
+                    } else {
+                      isSequenceActive = false; // Break sequence for this segment
+                      if (override.isRounded) textDecoration = 'line-through';
+                    }
+                  } else {
+                    // Standard logic: highlight wherever it matches
+                    if (bankIdx !== -1) {
+                      color = '#ffffff';
+                      visualBank.splice(bankIdx, 1);
+                    }
                   }
-                } else if (isSymbol) {
-                  color = '#ffffff'; // Keep signs bright for readability
+                } else if (isSign) {
+                  // Signs stay bright only if the sequence leading to them is active
+                  color = isSequenceActive ? '#ffffff' : 'rgba(255,255,255,0.15)';
                 }
                 
-                return <span key={idx} style={{ color, transition: 'color 0.2s' }}>{char}</span>;
+                return (
+                  <span key={idx} style={{ color, textDecoration, transition: 'all 0.2s' }}>
+                    {char}
+                  </span>
+                );
               });
             };
+
+            // Reset sequence active state between major segments (Val -> Mult/Exp)
+            // This allows the "1" to fail in Val but succeed in Mult
+            const valDigits = renderDigits((m.data.sign || "") + m.data.val);
+            isSequenceActive = true; // Reset for the next logical block
+            
+            const multDigits = m.data.mult ? renderDigits(m.data.mult) : null;
+            const expDigits = m.data.exp ? renderDigits(m.data.exp) : null;
 
             // 2. Conditional Styles for the 100% match
             const cardStyle = {
@@ -612,8 +757,16 @@ const GameComponent = ({ settings, setStep }) => {
               position: 'relative',
               overflow: 'hidden',
               transition: 'all 0.4s ease',
-              border: isPerfect ? `1px solid ${m.dominantColor}` : '1px solid rgba(255,255,255,0.05)',
-              boxShadow: isPerfect ? `0 0 15px ${m.dominantColor}40` : 'none',
+              
+              // LOGIC: Highlight border white if elevated, unless it's 100% (Perfect)
+              border: isPerfect 
+                ? `1px solid ${m.dominantColor}` 
+                : (isElevated ? `1px solid white` : '1px solid rgba(255,255,255,0.05)'),
+                
+              boxShadow: isPerfect 
+                ? `0 0 15px ${m.dominantColor}40` 
+                : (isElevated ? '0 0 10px rgba(255,255,255,0.2)' : 'none'),
+                
               backgroundColor: isPerfect ? 'transparent' : (m.percent > 0 ? `${m.dominantColor}15` : 'rgba(255,255,255,0.03)'),
               backgroundImage: isPerfect 
                 ? `linear-gradient(90deg, ${m.dominantColor}15 0%, ${m.dominantColor}40 50%, ${m.dominantColor}15 100%)` 
@@ -622,53 +775,93 @@ const GameComponent = ({ settings, setStep }) => {
               animation: isPerfect ? 'shimmer 2s infinite linear' : 'none'
             };
 
-            return (
-              <div key={i} style={cardStyle}>
-                {/* Injecting the style tag so the animation works */}
-                {i === 0 && <style>{shimmerKeyframes}</style>}
+            const miniToolBtn = (active, activeColor = '#10b981') => ({
+              padding: '2px 8px',
+              fontSize: '0.6rem',
+              background: active ? activeColor : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${active ? activeColor : 'rgba(255,255,255,0.1)'}`,
+              color: active ? 'white' : 'rgba(255,255,255,0.4)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              transition: 'all 0.2s',
+              letterSpacing: '0.5px'
+            });
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'white' }}>{m.symbol}</span>
+           return (
+            <div key={i} style={cardStyle}>
+              <style>{shimmerKeyframes}</style>
+
+              {/* HEADER SECTION: Symbol & Buttons/Percentage */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px' }}>
+                
+                {/* LEFT: Constant Symbol and Set Name */}
+                <div style={{ display: 'flex', flexDirection: 'column', zIndex: 1 }}>
+                  {parentSetName && (
+                    <div style={{ ...setBadgeStyle, fontSize: '0.7rem', marginBottom: '2px', opacity: 0.8 }}>
+                      {parentSetName.replace(/_/g, ' ')}
+                    </div>
+                  )}
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'white', lineHeight: '1' }}>
+                    {m.symbol}
+                  </span>
+                </div>
+
+                {/* RIGHT: Actions and Percentage (Stacked to avoid overlap) */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', zIndex: 10 }}>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={() => handleRoundClick(m.symbol)} style={miniToolBtn(override.isOrganized)}>ORGANIZE</button>
+                    {override.isOrganized && (
+                      <button onClick={() => handlePruneClick(m.symbol)} style={miniToolBtn(override.isRounded, '#ef4444')}>ROUND</button>
+                    )}
+                  </div>
+                  
                   <span style={{ 
                     fontSize: '0.8rem', 
                     color: isPerfect ? '#fff' : m.dominantColor, 
                     fontWeight: 'bold',
-                    textShadow: isPerfect ? `0 0 10px ${m.dominantColor}` : 'none' 
+                    lineHeight: '1'
                   }}>
                     {m.percent.toFixed(1)}% {isPerfect && '★'}
                   </span>
                 </div>
-
-                <div style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '1rem', position: 'relative', zIndex: 1 }}>
-                  {renderDigits((m.data.sign || "") + m.data.val)}
-                  {m.data.mult && (
-                    <>
-                      <span style={{ color: 'rgba(255,255,255,0.3)' }}>{" × "}</span>
-                      <span style={{ position: 'relative' }}>
-                        {renderDigits(m.data.mult)}
-                        <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>
-                          <span style={{ color: 'rgba(255,255,255,0.3)' }}>{m.data.mag}</span>
-                          {renderDigits(m.data.exp)}
-                        </sup>
-                      </span>
-                    </>
-                  )}
-
-                  <span style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.3)', marginLeft: '10px' }}>
-                    {m.data.unit}
-                  </span>
-                </div>
               </div>
-            );
+
+              {/* VALUE SECTION: Main Digits Display */}
+              <div style={{ 
+                marginTop: '4px', // Tightened gap between symbol and value
+                fontFamily: 'monospace', 
+                fontSize: '1rem', 
+                position: 'relative', 
+                zIndex: 1,
+                paddingTop: '4px',
+                borderTop: '1px solid rgba(255,255,255,0.05)' // Subtle separator
+              }}>
+                {valDigits}
+                {m.data.mult && (
+                  <>
+                    <span style={{ color: isSequenceActive ? 'white' : 'rgba(255,255,255,0.15)' }}>{" × "}</span>
+                    <span style={{ position: 'relative' }}>
+                      {multDigits}
+                      <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.15)' }}>{m.data.mag}</span>
+                        {expDigits}
+                      </sup>
+                    </span>
+                  </>
+                )}
+                <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.15)', marginLeft: '8px' }}>
+                  {m.data.unit}
+                </span>
+              </div>
+            </div>
+          );
           })}
         </div>
       </div>
     </div>
   );
 };
-
-const toolBtn = { border: 'none', borderRadius: '4px', color: 'white', cursor: 'pointer', fontWeight: 'bold', padding: '6px 10px', fontSize: '0.7rem' };
-const resetBtnStyle = { backgroundColor: '#2a2a2a', color: '#888', border: '1px solid #444', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' };
 
 export default function App() {
   const [step, setStep] = useState('TOPIC'); 
