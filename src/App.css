@@ -1,5 +1,4 @@
 /* --- Global Reset & Background --- */
-/* Restoring original clean font and unifying background */
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -10,10 +9,53 @@
 body, #root {
   margin: 0;
   padding: 0;
-  background-color: #1a1a1a; /* Single unified background */
+  background-color: #1a1a1a;
   color: #ffffff;
   min-height: 100vh;
   width: 100%;
+}
+
+/* --- Menu System --- */
+.menu-container {
+  text-align: center;
+  padding-top: 80px;
+  background-color: #1a1a1a;
+  min-height: 100vh;
+  color: white;
+}
+
+.menu-btn {
+  display: block;
+  margin: 10px auto;
+  padding: 12px 24px;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  width: 220px;
+  background-color: #333;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.menu-divider {
+  width: 40px;
+  height: 1px;
+  background: #333;
+  margin: 20px auto;
+}
+
+.active-grid {
+  background-color: #3b82f6 !important;
+}
+
+.confirm-btn {
+  margin-top: 30px;
+  background-color: #10b981;
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* --- Layout Containers --- */
@@ -33,7 +75,6 @@ body, #root {
   position: sticky;
   top: 40px;
   border: 1px solid rgba(255,255,255,0.1);
-  /* The slight blueish tint from your screenshot is handled via the brightness state */
 }
 
 /* --- Constant Card Styles --- */
@@ -58,14 +99,13 @@ body, #root {
   z-index: 1;
 }
 
-/* --- Grid Elements --- */
 /* --- Grid Layout --- */
 .grid-root {
   display: flex;
   flex-direction: column;
   gap: 10px;
   align-items: flex-start;
-  background-color: #1a1a1a; /* Unified background */
+  background-color: #1a1a1a;
 }
 
 .grid-row {
@@ -98,10 +138,10 @@ body, #root {
 .grid-token.decimal {
   border-radius: 4px;
   font-size: 1.1rem;
-  border: none; /* Preference: No border for factors/powers */
+  border: none; /* No border for factors or powers */
 }
 
-/* Preference: Mark blue ONLY if MP sequence is orthogonal */
+/* MP sequence blue only if orthogonal */
 .grid-token.mp-orthogonal {
   background-color: #3b82f6 !important;
 }
@@ -144,4 +184,222 @@ body, #root {
   padding: 6px 10px;
   font-size: 0.7rem;
   background-color: #333;
+}
+
+/* --- Constant Card Styles --- */
+.constant-card {
+  padding: 18px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.03);
+}
+
+.constant-card.perfect-match {
+  animation: shimmer 2s infinite linear;
+  background-size: 200% 100%;
+  background-color: transparent;
+}
+
+.constant-card.elevated {
+  border: 1px solid white;
+  box-shadow: 0 0 10px rgba(255,255,255,0.2);
+}
+
+/* --- Typography & Elements --- */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.set-badge {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: white;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  opacity: 0.8;
+}
+
+.symbol-text {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  line-height: 1;
+}
+
+.value-display {
+  margin-top: 4px;
+  font-family: monospace;
+  font-size: 1rem;
+  position: relative;
+  z-index: 1;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.unit-text {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.15);
+  margin-left: 8px;
+}
+
+/* --- Buttons --- */
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  z-index: 10;
+}
+
+.mini-tool-btn {
+  padding: 2px 8px;
+  font-size: 0.6rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.4);
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.mini-tool-btn.active {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.mini-tool-btn.active-round {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
+
+/* --- Main Layout --- */
+.game-screen-container {
+  display: flex;
+  justify-content: center;
+  padding: 60px 20px;
+  font-family: monospace;
+  color: white;
+  background-color: #1a1a1a;
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.game-content-max-width {
+  display: flex;
+  flex-direction: row;
+  gap: 60px;
+  align-items: flex-start;
+  max-width: 1400px;
+  width: 100%;
+}
+
+.left-scroll-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-x-scroller {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+
+.grid-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+  width: fit-content;
+}
+
+/* --- Footer & Reset Buttons --- */
+.action-footer {
+  margin-top: 40px;
+  display: flex;
+  gap: 15px;
+  border-top: 1px solid #333;
+  padding-top: 20px;
+}
+
+.reset-btn {
+  background-color: #2a2a2a;
+  color: #888;
+  border: 1px solid #444;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.reset-btn:hover {
+  background-color: #333;
+  color: #eee;
+}
+
+.submit-btn {
+  margin-left: auto;
+}
+
+/* --- Right Sticky Panel --- */
+.sticky-right-panel {
+  width: 420px;
+  flex-shrink: 0;
+  padding: 25px;
+  border-radius: 16px;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: sticky;
+  top: 40px;
+  border: 1px solid rgba(255,255,255,0.1);
+  z-index: 10;
+  transition: background-color 0.5s ease;
+}
+
+.palette-container {
+  display: flex;
+  gap: 10px;
+  background: rgba(0,0,0,0.3);
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.permutation-box {
+  border: 1px solid #10b981;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: rgba(16, 185, 129, 0.1);
 }
