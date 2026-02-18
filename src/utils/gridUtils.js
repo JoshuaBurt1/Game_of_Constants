@@ -26,20 +26,41 @@ export const getSquareShellData = (n) => {
   if (n <= 0) return [];
   if (n === 1) return [{ token: "1", stableId: "sq-0-1-0", originalDigit: "1", isSymbol: false }];
   
+  // 1. Initial k and offset
   let k = Math.floor(Math.sqrt(n - 1));
   let offset = n - (k * k);
-  const R = Math.floor((offset <= k + 1) ? k : k - (offset - (k + 1))) + 1;
-  const C = Math.floor((offset <= k + 1) ? offset - 1 : k) + 1;
+
+  // 2. Apply "Negative Offset" rule: if offset > k, move to the next square
+  if (offset > k) {
+    k = k + 1;
+    offset = n - (k * k); // results in a negative value or zero
+  }
+
+  // 3. Calculate R and C
+  // For n=623, k=25, offset=-2: R=24, C=26
+  let R, C;
+  if (offset >= 0) {
+    // Standard L-shell logic (Positive)
+    R = (offset <= k) ? offset : k;
+    C = k + 1;
+  } else {
+    // Negative offset logic
+    // Formula derived from Row 24, Col 26 for n=623 (k=25, off=-2)
+    R = (k + 1) + offset; 
+    C = k + 1;
+  }
+
   const prod = R * C;
   const sum = R + C;
 
   let prodStr = prod.toString();
   let sumStr = sum.toString().padStart(prodStr.length, '0');
 
+  // Spacer logic for visual alignment
   const spacers = [...Array(R.toString().length).fill(" "), "×", ...Array(C.toString().length).fill(" "), "="];
 
   const lines = [
-    [n, "=", k, "×", k, "+", offset, "row:", R, "col:", C],
+    [n, "=", k, "×", k, ...(offset >= 0 ? ["+"] : []), offset, "row:", R, "col:", C],
     [C, "×", R, "=", prodStr],
     [C, "+", R, "=", sumStr],
     [...spacers, prod + sum] 
