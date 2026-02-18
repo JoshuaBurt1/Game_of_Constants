@@ -61,8 +61,8 @@ export const getSquareShellData = (n) => {
 
   const lines = [
     [n, "=", k, "×", k, ...(offset >= 0 ? ["+"] : []), offset, "row:", R, "col:", C],
-    [C, "×", R, "=", prodStr],
-    [C, "+", R, "=", sumStr],
+    [R, "×", C, "=", prodStr],
+    [R, "+", C, "=", sumStr],
     [...spacers, prod + sum] 
   ];
 

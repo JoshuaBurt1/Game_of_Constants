@@ -277,7 +277,7 @@ const GameComponent = ({ settings, setStep }) => {
       return next;
     });
   };
-
+  
   const handleSubmitScore = async () => {
     try {
       const selectionsArray = Object.values(selections).flatMap(gridMap => Object.keys(gridMap));
@@ -291,6 +291,31 @@ const GameComponent = ({ settings, setStep }) => {
         percent: m.percent.toFixed(1)
       }));
 
+      // --- FIND COMPLETED SET ---
+      let eqId = "None";
+      let eqString = "";
+      let originalSet = null;
+
+      if (activeSetIds.length > 0) {
+        // Find sets where EVERY member is 100% (99.9+)
+        const completedSets = EQUATION_SETS
+          .filter(set => activeSetIds.includes(set.id))
+          .filter(set => {
+            const perfectCount = set.members.filter(m => 
+              matchResults.find(r => r.symbol === m && r.percent >= 99.9)
+            ).length;
+            // Strict check: all members must be present/perfect
+            return perfectCount === set.members.length;
+          });
+        
+        // If at least one equation is fully complete, take the first one
+        if (completedSets.length > 0) {
+          originalSet = completedSets[0];
+          eqId = originalSet.id;
+          eqString = originalSet.equation || originalSet.id.replace(/_/g, ' ');
+        }
+      }
+
       const highscoreData = {
         topic: settings.topic || "General",
         word: settings.word,
@@ -299,6 +324,12 @@ const GameComponent = ({ settings, setStep }) => {
         results: performance,
         unusedDigits: remainingDigits,
         timestamp: serverTimestamp(),
+        isTruncated: isGloballyTruncated,
+        isRounded: isGloballyRounded,
+        isOrganized: isGloballyOrganized,
+        associatedId: eqId,
+        associatedEquation: eqString,
+        equationMembers: originalSet ? originalSet.members : [] 
       };
 
       await addDoc(collection(db, "highscores"), highscoreData);

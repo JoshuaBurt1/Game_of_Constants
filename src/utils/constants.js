@@ -9,9 +9,9 @@ export const ZODIAC_NAMES = {
 };
 
 export const EQUATION_SETS = [
-  { id: "reduced_planck", members: ["ℎ", "ℏ", "2π"]},
-  { id: "mass_energy_equivalence", members: ["(1/c)^2", "ℏ", "ℏ/c^2"]},
-  { id: "einsteinian_gravity", members: ["G", "κ", "c^2"]},
+  { id: "reduced_planck", equation: "ℏ=ℎ/2π", members: ["ℎ", "ℏ", "2π"]},
+  { id: "mass_energy_equivalence", equation: "ℏ*(1/c)^2=ℏ/c^2", members: ["(1/c)^2", "ℏ", "ℏ/c^2"]},
+  { id: "einsteinian_gravity", equation: "G_μν = κT_μν", members: ["G", "κ", "c^2"]},
   /*
   { id: "fine_structure", members: ["α", "1/α", "μ0", "ε0", "c"] },
   { id: "quantum_gravity", members: ["G", "ℏ", "c"] }*/
@@ -33,7 +33,7 @@ export const CONSTANTS = {
     "(1/c)^4": { sign:"", val: "1.2379901472", mult: "10", mag: "-", exp: "34", unit: " s²/m²" }
   },
   GRAVITY: {
-    "G": { sign:"", val: "6.6743", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },
+    "G": { sign:"", val: "6.67430", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },
     /*"F": { sign:"", val: "6.6743", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },*/
     "κ": { sign:"", val: "2.076647", mult: "10", mag: "-", exp: "43", unit: " s²/m·kg" },
     "G^2": { sign:"", val: "4.454628049", mult: "10", mag: "-", exp: "21", unit: " m⁶/kg²·s⁴" }
