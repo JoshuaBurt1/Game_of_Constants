@@ -93,7 +93,6 @@ const GridDisplay = ({
               isSymStyle ? 'symbol' : 'interactive',
               shouldHide ? 'hidden' : '', // This keeps the element in the DOM for spacing
               isBoxed ? 'boxed' : '',
-              isOrthogonalMP ? 'mp-orthogonal' : ''
             ].join(' ');
 
             return (
