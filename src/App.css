@@ -403,3 +403,20 @@ body, #root {
   margin-bottom: 20px;
   background-color: rgba(16, 185, 129, 0.1);
 }
+
+.rounding-marker {
+  position: absolute;
+  right: -2px; /* Position it right after the digit */
+  top: 15%;
+  bottom: 15%;
+  width: 2px;
+  border-left: 2px solid;
+  box-shadow: 0 0 8px currentColor;
+  animation: marker-pulse 1.5s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes marker-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
