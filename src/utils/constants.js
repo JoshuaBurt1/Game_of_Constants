@@ -1,12 +1,15 @@
 export const ZODIAC_MAPS = {
   "Hebrew": {"Rat":292, "Ox":506, "Tiger":142, "Rabbit":653, "Dragon":510, "Snake":358, "Horse":126, "Goat":77, "Monkey":186, "Rooster":336, "Dog": 52, "Pig":225},
-  "Ancient Greek": {"Rat":640, "Ox":672, "Tiger":623, "Rabbit":470, "Dragon":975, "Snake":780, "Horse":440, "Goat":71, "Monkey":397, "Rooster":1256, "Dog": 1270, "Pig":800}
+  "Ancient Greek": {"Rat":640, "Ox":672, "Tiger":623, "Rabbit":470, "Dragon":975, "Snake":780, "Horse":440, "Goat":71, "Monkey":397, "Rooster":1256, "Dog": 1270, "Pig":800},
+  "Arabic": {"Rat":281, "Ox": 706, "Tiger": 290, "Rabbit": 253, "Dragon": 510, "Snake": 23, "Horse": 149, "Goat": 117, "Monkey": 304, "Rooster": 34, "Dog": 52, "Pig": 867}
 };
 
 export const ZODIAC_NAMES = {
   "Hebrew": {"Rat": "עַכְבָּר", "Ox":"שׁוֹר", "Tiger":"חִדֶּקֶל", "Rabbit":"אַרְנֶבֶת", "Dragon":"תַנִּין", "Snake":"נָחָשׁ", "Horse":"סוס", "Goat":"עֵז", "Monkey":"קוף", "Rooster":"שֶׂכְוִי", "Dog":"כֶּלֶב", "Pig":"חזיר"},
-  "Ancient Greek": {"Rat": "μῦς", "Ox":"βοῦς", "Tiger":"Τίγρις", "Rabbit":"κόνικλος", "Dragon":"δράκων", "Snake":"ὄφις", "Horse":"ἵππος", "Goat":"αἴξ", "Monkey":"πίθηκος", "Rooster":"ἀλέκτωρ", "Dog":"Κύων", "Pig":"σῦς"}
+  "Ancient Greek": {"Rat": "μῦς", "Ox":"βοῦς", "Tiger":"Τίγρις", "Rabbit":"κόνικλος", "Dragon":"δράκων", "Snake":"ὄφις", "Horse":"ἵππος", "Goat":"αἴξ", "Monkey":"πίθηκος", "Rooster":"ἀλέκτωρ", "Dog":"Κύων", "Pig":"σῦς"},
+  "Arabic": {"Rat": "فَأْر", "Ox": "ثَوْر", "Tiger": "نَمِر", "Rabbit": "أَرْنَب", "Dragon": "تِنِّين", "Snake": "حَيَّة", "Horse": "حِصَان", "Goat": "مَاعِز", "Monkey": "قِرْد", "Rooster": "دِيك", "Dog": "كَلْب", "Pig": "خِنْزِير"}
 };
+//دِجْلَة= 437 (Tigris River)
 
 export const EQUATION_SETS = [
   { id: "reduced_planck", equation: "ℏ=ℎ/2π", members: ["ℎ", "ℏ", "2π"]},

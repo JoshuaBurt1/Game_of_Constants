@@ -107,11 +107,37 @@ function HighscoresView({ onBack }) {
 
   return (
     <div style={{ textAlign: 'center', paddingTop: '60px', color: 'white' }}>
-      <h2>Recent Achievements</h2>
-      
-      {/* SWAPPED Loading text for LoadingBox */}
-      {loading ? <LoadingBox /> : (
-        <div style={{ maxWidth: '1050px', margin: '20px auto', background: '#222', padding: '20px', borderRadius: '12px' }}>
+      {loading ? (
+        <LoadingBox />
+      ) : (
+        <div style={{ maxWidth: '1050px', margin: '20px auto', background: '#222', padding: '20px', borderRadius: '12px', position: 'relative' }}>
+          
+          {/* HEADER SECTION: Centered Title, Right-aligned Button */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            paddingBottom: '5px',
+            borderBottom: '1px solid #333'
+          }}>
+            <div style={{ flex: 1 }}></div>
+            <h2 className="hs-menu-title">High Scores</h2>
+            {/* 3. Right-aligned Button */}
+            <div style={{ flex: 1, textAlign: 'right' }}>
+              <button 
+                onClick={onBack} 
+                className="home-menu-btn"
+                style={{ 
+                  width: 'auto',
+                  padding: '6px 12px',
+                  fontSize: '0.75rem', // Smaller text
+                  display: 'inline-block' 
+                }}
+              >
+                Back to Menu
+              </button>
+            </div>
+          </div>
+
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #444', color: '#888', fontSize: '0.7rem' }}>
@@ -206,9 +232,6 @@ function HighscoresView({ onBack }) {
           </table>
         </div>
       )}
-      <button onClick={onBack} style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer', background: '#444', border: 'none', color: 'white', borderRadius: '6px' }}>
-        Back to Menu
-      </button>
     </div>
   );
 }

@@ -24,60 +24,64 @@ export const getPermutations = (str) => {
 
 export const getSquareShellData = (n) => {
   if (n <= 0) return [];
-  if (n === 1) return [{ token: "1", stableId: "sq-0-1-0", originalDigit: "1", isSymbol: false }];
-  
-  // 1. Initial k and offset
+  if (n === 1) return [{ token: "1", stableId: "sq-0-0-0", originalDigit: "1", isSymbol: false }];
+
+  // 1. Calculate k and offset
   let k = Math.floor(Math.sqrt(n - 1));
   let offset = n - (k * k);
-
-  // 2. Apply "Negative Offset" rule: if offset > k, move to the next square
-  if (offset > k) {
-    k = k + 1;
-    offset = n - (k * k); // results in a negative value or zero
-  }
-
-  // 3. Calculate R and C
-  // For n=623, k=25, offset=-2: R=24, C=26
-  let R, C;
-  if (offset >= 0) {
-    // Standard L-shell logic (Positive)
-    R = (offset <= k) ? offset : k;
-    C = k + 1;
+  
+  let x, y;
+  if (offset <= k + 1) { 
+      // Mapping from the provided shell logic
+      x = k;          
+      y = offset - 1; 
   } else {
-    // Negative offset logic
-    // Formula derived from Row 24, Col 26 for n=623 (k=25, off=-2)
-    R = (k + 1) + offset; 
-    C = k + 1;
+      let xCoord = k - (offset - (k + 1));
+      x = xCoord;     
+      y = k;          
   }
+
+  // 2. Map coordinates to R and C (applying the +1 shift observed in examples)
+  const R = x + 1;
+  const C = y + 1;
 
   const prod = R * C;
   const sum = R + C;
 
   let prodStr = prod.toString();
+  // Pad the sum with a leading zero if it's shorter than the product
   let sumStr = sum.toString().padStart(prodStr.length, '0');
 
-  // Spacer logic for visual alignment
-  const spacers = [...Array(R.toString().length).fill(" "), "×", ...Array(C.toString().length).fill(" "), "="];
+  // Spacer logic for vertical alignment based on string lengths
+  const spacers = [
+    ...Array(R.toString().length).fill(" "), 
+    "×", 
+    ...Array(C.toString().length).fill(" "), 
+    "="
+  ];
 
+  // 3. Construct the lines array
   const lines = [
-    [n, "=", k, "×", k, ...(offset >= 0 ? ["+"] : []), offset, "row:", R, "col:", C],
-    [R, "×", C, "=", prodStr],
-    [R, "+", C, "=", sumStr],
+    [n, "=", k, "×", k, "+", offset, "col:", C, "row:", R],
+    [C, "×", R, "=", prodStr],
+    [C, "+", R, "=", sumStr],
     [...spacers, prod + sum] 
   ];
 
-  return lines.flatMap((line, lineIdx) => [
-    ...line.flatMap((val, valIdx) => {
+  // 4. Transform into the tokenized structure
+  return lines.flatMap((line, lineIdx) => {
+    const rowTokens = line.flatMap((val, valIdx) => {
       const chars = digitize(val);
       return chars.map((char, charIdx) => ({
         token: char,
         stableId: `sq-${lineIdx}-${valIdx}-${charIdx}`, 
         originalDigit: char,
-        isSymbol: SYMBOLS.includes(char)
+        isSymbol: SYMBOLS.includes(char) || isNaN(parseInt(char))
       }));
-    }),
-    null 
-  ]);
+    });
+    // Return the row tokens followed by null to signify a line break
+    return [...rowTokens, null];
+  });
 };
 
 export const getHexagonData = (N) => {
