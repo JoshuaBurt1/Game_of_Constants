@@ -59,10 +59,19 @@ export const getSquareShellData = (n) => {
     ...Array(C.toString().length).fill(" "), 
     "="
   ];
+  let sign = "+";
+  if (offset>k) {
+      offset = R-1;
+      k = C;
+      sign = "-"
+  }
+  else{
+    offset = C;
+  }
 
   // 3. Construct the lines array
   const lines = [
-    [n, "=", k, "×", k, "+", offset, "col:", C, "row:", R],
+    [n, "=", k, "×", k, sign, offset, "col:", C, "row:", R],
     [C, "×", R, "=", prodStr],
     [C, "+", R, "=", sumStr],
     [...spacers, prod + sum] 
