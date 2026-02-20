@@ -9,14 +9,17 @@ export const ZODIAC_NAMES = {
   "Ancient Greek": {"Rat": "μῦς", "Ox":"βοῦς", "Tiger":"Τίγρις", "Rabbit":"κόνικλος", "Dragon":"δράκων", "Snake":"ὄφις", "Horse":"ἵππος", "Goat":"αἴξ", "Monkey":"πίθηκος", "Rooster":"ἀλέκτωρ", "Dog":"Κύων", "Pig":"σῦς"},
   "Arabic": {"Rat": "فَأْر", "Ox": "ثَوْر", "Tiger": "نَمِر", "Rabbit": "أَرْنَب", "Dragon": "تِنِّين", "Snake": "حَيَّة", "Horse": "حِصَان", "Goat": "مَاعِز", "Monkey": "قِرْد", "Rooster": "دِيك", "Dog": "كَلْب", "Pig": "خِنْزِير"}
 };
+// Rat and Ox seems to be correct for all languages
 //دِجْلَة= 437 (Tigris River)
+// For Ox (Arabic)-> 1 remainder 6th value 90.9% (gold); if 8 is separate for κ = 8πG/c^4 (68: 1 sigma)
 
 export const EQUATION_SETS = [
-  { id: "reduced_planck", equation: "ℏ=ℎ/2π", members: ["ℎ", "ℏ", "2π"]},
-  { id: "mass_energy_equivalence", equation: "ℏ*(1/c)^2=ℏ/c^2", members: ["(1/c)^2", "ℏ", "ℏ/c^2"]},
-  { id: "einsteinian_gravity", equation: "G_μν = κT_μν", members: ["G", "κ", "c^2"]},
+  { id: "reduced planck", equation: "ℏ=ℎ/2π", members: ["ℎ", "ℏ", "2π"]},
+  { id: "mass energy equivalence", equation: "ℏ*(1/c)^2=ℏ/c^2", members: ["(1/c)^2", "ℏ", "ℏ/c^2"]},
+  { id: "space-time curvature", equation: "κ = 8πG/c^4", members: ["κ", "8π", "G", "(1/c)^4"]},
+  { id: "fine structure", equation: "α*(1/α) = √α*√(1/α)", members: ["α", "1/α", "√α", "√(1/α)"]},
   /*
-  { id: "fine_structure", members: ["α", "1/α", "μ0", "ε0", "c"] },
+  { id: "einsteinian_gravity", equation: "G_μν = κT_μν", members: ["G", "κ", "c^2"]},
   { id: "quantum_gravity", members: ["G", "ℏ", "c"] }*/
 ];
 
@@ -24,7 +27,7 @@ export const CONSTANTS = {
   PLANCK: {
     "ℏ": { sign:"", val: "1.054571817", mult: "10", mag: "-", exp: "34", unit: " kg·m²/s" },
     "ℎ": { sign:"", val: "6.62607015", mult: "10", mag: "-", exp: "34", unit: " kg·m²/s" },
-    "ℏ/c^2": { sign:"", val: "1.173369", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
+    "ℏ/c^2": { sign:"", val: "1.17336939", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
     "ℎ/c^2": { sign:"", val: "7.3724192313", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
     "2π": {sign:"", val: "2*3.1415926535", multi: "", mag: "", exp: "", unit: ""}
   },
@@ -32,20 +35,20 @@ export const CONSTANTS = {
     "c^2": { sign:"", val: "8.9875517873681764", mult: "10", mag: "", exp: "16", unit: " m²/s²" },
     "c": { sign:"", val: "299792458", mult: "", mag: "", exp: "", unit: " m/s" },
     "1/c": { sign:"", val: "3.3335640951", mult: "10", mag: "-", exp: "9", unit: " s/m" },
-    "(1/c)^2": { sign:"", val: "1.11265005", mult: "10", mag: "-", exp: "17", unit: " s²/m²" },
-    "(1/c)^4": { sign:"", val: "1.2379901472", mult: "10", mag: "-", exp: "34", unit: " s²/m²" }
+    "(1/c)^2": { sign:"", val: "1.1126500560", mult: "10", mag: "-", exp: "17", unit: " s²/m²" },
   },
   GRAVITY: {
-    "G": { sign:"", val: "6.67430", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },
-    /*"F": { sign:"", val: "6.6743", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },*/
     "κ": { sign:"", val: "2.076647", mult: "10", mag: "-", exp: "43", unit: " s²/m·kg" },
-    "G^2": { sign:"", val: "4.454628049", mult: "10", mag: "-", exp: "21", unit: " m⁶/kg²·s⁴" }
+    "8π": {sign:"", val: "8*3.1415926535", multi: "", mag: "", exp: "", unit: ""},
+    "G": { sign:"", val: "6.67430", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },
+    "(1/c)^4": { sign:"", val: "1.2379901472", mult: "10", mag: "-", exp: "34", unit: " s²/m²" },
+    "G^2": { sign:"", val: "4.454628049", mult: "10", mag: "-", exp: "21", unit: " m⁶/kg²·s⁴" },
   },
   FINE_STRUCTURE: {
-    "1/α": { sign:"", val: "137.035999", mult: "", mag: "", exp: "", unit: "" },
-    "α": { sign:"", val: "7.297352", mult: "10", mag: "-", exp: "3", unit: "" },
-    "√α": { sign:"", val: "8.542453", mult: "10", mag: "-", exp: "2", unit: "" },
-    "√(1/α)": { sign:"", val: "11.706237", mult: "", mag: "", exp: "", unit: "" }
+    "1/α": { sign:"", val: "137.035999176", mult: "", mag: "", exp: "", unit: "" },
+    "α": { sign:"", val: "7.297352564", mult: "10", mag: "-", exp: "3", unit: "" },
+    "√α": { sign:"", val: "8.542454310", mult: "10", mag: "-", exp: "2", unit: "" },
+    "√(1/α)": { sign:"", val: "11.706237618", mult: "", mag: "", exp: "", unit: "" }
   },
   MAGNETIC: {
     "μ0": { sign:"", val: "1.25663706", mult: "10", mag: "-", exp: "6", unit: " N/A²" }

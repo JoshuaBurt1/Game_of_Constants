@@ -19,7 +19,6 @@ import {
   getHexagonData 
 } from '../utils/gridUtils';
 
-
 // --- GAME COMPONENT ---
 const GameComponent = ({ settings, setStep }) => {
   const wordVal = ZODIAC_MAPS[settings.language][settings.word];
@@ -34,7 +33,6 @@ const GameComponent = ({ settings, setStep }) => {
   const [cardOverrides, setCardOverrides] = useState({});
   const [isGloballyOrganized, setIsGloballyOrganized] = useState(false);
   const [isGloballyTruncated, setIsGloballyTruncated] = useState(false);
-  const [isGloballyRounded, setIsGloballyRounded] = useState(false);
 
   // Global Organise Handler
   const handleGlobalOrganize = () => {
@@ -55,7 +53,6 @@ const GameComponent = ({ settings, setStep }) => {
   const handleGlobalTruncate = () => {
     const newState = !isGloballyTruncated;
     setIsGloballyTruncated(newState);
-    if (newState) setIsGloballyRounded(false);
 
     setCardOverrides(prev => {
       const next = { ...prev };
@@ -136,139 +133,10 @@ const GameComponent = ({ settings, setStep }) => {
               }
             });
           }
-          delete next[m.symbol]?.roundedVal;
           next[m.symbol] = { ...next[m.symbol], truncateIndex: lastMatchIdx };
         } else {
           // Remove truncation
           const { truncateIndex, ...rest } = next[m.symbol] || {};
-          next[m.symbol] = rest;
-        }
-      });
-      return next;
-    });
-  };
-
-  // Global Round Handler
-  const handleGlobalRound = () => {
-    const newState = !isGloballyRounded;
-    setIsGloballyRounded(newState);
-    if (newState) setIsGloballyTruncated(false); // Prevent clashing with Truncate
-
-    setCardOverrides(prev => {
-      const next = { ...prev };
-      matchResults.forEach(m => {
-        if (newState) {
-          const valStr = m.data.val || "";
-          const otherStr = (m.data.mult || "") + (m.data.exp || "");
-          const bank = [...(colorDigitMap[m.dominantColor] || [])];
-          const isOrganized = next[m.symbol]?.isOrganized;
-          
-          let lastMatchIdx = -1;
-
-          // --- Exact same logic as Truncate to find lastMatchIdx ---
-          if (isOrganized) {
-            const valMatches = [];
-            const tempBank = [...bank];
-            
-            valStr.split('').forEach((char, i) => {
-              const bIdx = tempBank.indexOf(char);
-              if (/[0-9]/.test(char) && bIdx !== -1) {
-                valMatches.push({ char, i });
-                tempBank.splice(bIdx, 1);
-              }
-            });
-
-            const gaps = [];
-            otherStr.split('').forEach(char => {
-              if (/[0-9]/.test(char)) {
-                const bIdx = tempBank.indexOf(char);
-                if (bIdx !== -1) tempBank.splice(bIdx, 1);
-                else gaps.push(char);
-              }
-            });
-
-            const sacMap = new Set();
-            const reserved = [];
-            gaps.forEach(gapChar => {
-              for (let i = valMatches.length - 1; i >= 0; i--) {
-                if (valMatches[i].char === gapChar) {
-                  sacMap.add(valMatches[i].i);
-                  reserved.push(gapChar);
-                  valMatches.splice(i, 1);
-                  break;
-                }
-              }
-            });
-
-            const visualBank = [...bank];
-            valStr.split('').forEach((char, idx) => {
-              if (/[0-9]/.test(char)) {
-                if (!sacMap.has(idx)) {
-                  const bIdx = visualBank.indexOf(char);
-                  if (bIdx !== -1) {
-                    const countInBank = visualBank.filter(c => c === char).length;
-                    const countReserved = reserved.filter(c => c === char).length;
-                    if (countInBank > countReserved) {
-                      lastMatchIdx = idx;
-                      visualBank.splice(bIdx, 1);
-                    } else if (countInBank > 0 && countReserved > 0) {
-                      reserved.splice(reserved.indexOf(char), 1);
-                    }
-                  }
-                }
-              }
-            });
-          } else {
-            const tempBank = [...bank];
-            valStr.split('').forEach((char, idx) => {
-              if (/[0-9]/.test(char)) {
-                const bIdx = tempBank.indexOf(char);
-                if (bIdx !== -1) {
-                  lastMatchIdx = idx;
-                  tempBank.splice(bIdx, 1);
-                }
-              }
-            });
-          }
-          // --- End lastMatchIdx logic ---
-
-          // --- Rounding Math Logic ---
-          let roundedVal = valStr;
-          if (lastMatchIdx !== -1) {
-            let targetIdx = -1;
-            // Find the *first* digit after the last highlighted digit
-            for (let i = lastMatchIdx + 1; i < valStr.length; i++) {
-              if (/[0-9]/.test(valStr[i])) {
-                targetIdx = i;
-                break;
-              }
-            }
-
-            if (targetIdx !== -1) {
-              let decIdx = valStr.indexOf('.');
-              if (decIdx === -1) decIdx = valStr.length;
-              
-              const numVal = parseFloat(valStr);
-              if (!isNaN(numVal)) {
-                if (targetIdx > decIdx) {
-                  // Rounding decimals (e.g. 3.14159 -> 3.142)
-                  const decPlaces = targetIdx - decIdx;
-                  roundedVal = numVal.toFixed(decPlaces);
-                } else {
-                  // Rounding large integers (e.g. 299792458 -> 299800000)
-                  const zeros = decIdx - targetIdx - 1;
-                  const factor = Math.pow(10, zeros);
-                  roundedVal = (Math.round(numVal / factor) * factor).toString();
-                }
-              }
-            }
-          }
-
-          delete next[m.symbol]?.truncateIndex; // Clean up truncate if it exists
-          next[m.symbol] = { ...next[m.symbol], roundedVal };
-        } else {
-          // Remove rounding
-          const { roundedVal, ...rest } = next[m.symbol] || {};
           next[m.symbol] = rest;
         }
       });
@@ -280,6 +148,76 @@ const GameComponent = ({ settings, setStep }) => {
     try {
       const selectionsArray = Object.values(selections).flatMap(gridMap => Object.keys(gridMap));
       const allGridTokens = Object.values(gridTokens).flat();
+      
+      // --- UPDATED MULTI-GRID TRACKING ---
+      const gridMetrics = {};
+      let aggregateStartingTotal = 0; // Track original digit count
+      let aggregateEndingTotal = 0;   // Track current digit count
+      let aggregateChanged = 0;
+      let aggregateUnchanged = 0;
+
+      settings.gridTypes.forEach(type => {
+        // 1. Get tokens for THIS specific grid (Current State)
+        const tokensForThisGrid = gridTokens[type] || [];
+        const digitTokens = tokensForThisGrid.filter(t => t && !t.isSymbol);
+        
+        // 2. Reconstruct original pool for THIS grid (Starting State)
+        const originalPool = [];
+        const initialTokens = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
+        initialTokens.forEach(item => {
+          if (item && !item.isSymbol) {
+            const val = item.token !== undefined ? String(item.token) : String(item);
+            if (/[0-9]/.test(val)) originalPool.push(val);
+          }
+        });
+
+        // Capture starting total before originalPool is modified by splicing
+        const gridStartingTotal = originalPool.length;
+        const gridEndingTotal = digitTokens.length;
+
+        // 3. Compare current state vs original pool
+        let gridChanged = 0;
+        let gridUnchanged = 0;
+
+        digitTokens.forEach(token => {
+          const val = String(token.token);
+          const foundIdx = originalPool.indexOf(val);
+          
+          if (foundIdx !== -1) {
+            gridUnchanged++;
+            originalPool.splice(foundIdx, 1); // Remove so duplicates aren't double-counted
+          } else {
+            gridChanged++;
+          }
+        });
+
+        // Store per-grid results
+        gridMetrics[type] = {
+          startingTotal: gridStartingTotal, // NEW
+          endingTotal: gridEndingTotal,     // NEW
+          changed: gridChanged,
+          unchanged: gridUnchanged,
+          percentChanged: gridEndingTotal > 0 ? Number(((gridChanged / gridEndingTotal) * 100).toFixed(1)) : 0,
+          percentUnchanged: gridEndingTotal > 0 ? Number(((gridUnchanged / gridEndingTotal) * 100).toFixed(1)) : 0
+        };
+
+        // Add to aggregate totals
+        aggregateStartingTotal += gridStartingTotal;
+        aggregateEndingTotal += gridEndingTotal;
+        aggregateChanged += gridChanged;
+        aggregateUnchanged += gridUnchanged;
+      });
+
+      // Calculate final aggregate percentages based on the Ending Total
+      const aggregatePercentChanged = aggregateEndingTotal > 0 
+        ? Number(((aggregateChanged / aggregateEndingTotal) * 100).toFixed(1)) 
+        : 0;
+      const aggregatePercentUnchanged = aggregateEndingTotal > 0 
+        ? Number(((aggregateUnchanged / aggregateEndingTotal) * 100).toFixed(1)) 
+        : 0;
+
+      // ------------------------------------
+
       const remainingDigits = allGridTokens
         .filter(token => token && token.stableId && !token.isSymbol && !selectionsArray.includes(token.stableId))
         .map(token => token.originalDigit || token.token);
@@ -295,18 +233,15 @@ const GameComponent = ({ settings, setStep }) => {
       let originalSet = null;
 
       if (activeSetIds.length > 0) {
-        // Find sets where EVERY member is 100% (99.9+)
         const completedSets = EQUATION_SETS
           .filter(set => activeSetIds.includes(set.id))
           .filter(set => {
             const perfectCount = set.members.filter(m => 
               matchResults.find(r => r.symbol === m && r.percent >= 99.9)
             ).length;
-            // Strict check: all members must be present/perfect
             return perfectCount === set.members.length;
           });
         
-        // If at least one equation is fully complete, take the first one
         if (completedSets.length > 0) {
           originalSet = completedSets[0];
           eqId = originalSet.id;
@@ -317,13 +252,25 @@ const GameComponent = ({ settings, setStep }) => {
       const highscoreData = {
         topic: settings.topic || "General",
         word: settings.word,
+        originalValue: wordVal,
         language: settings.language,
         grids: settings.gridTypes,
         results: performance,
         unusedDigits: remainingDigits,
+        
+        // Combined Totals
+        startingTotal: aggregateStartingTotal,
+        totalDigitsDisplayed: aggregateEndingTotal,
+        changedDigits: aggregateChanged,             
+        unchangedDigits: aggregateUnchanged,           
+        percentageChanged: aggregatePercentChanged,          
+        percentageUnchanged: aggregatePercentUnchanged,
+        
+        // Detailed Breakdowns (for Highscore view)
+        gridBreakdown: gridMetrics, 
+
         timestamp: serverTimestamp(),
         isTruncated: isGloballyTruncated,
-        isRounded: isGloballyRounded,
         isOrganized: isGloballyOrganized,
         associatedId: eqId,
         associatedEquation: eqString,
@@ -438,7 +385,6 @@ const GameComponent = ({ settings, setStep }) => {
     setSelections({});
     setIsGloballyOrganized(false);
     setIsGloballyTruncated(false);
-    setIsGloballyRounded(false);
     setCardOverrides({});
   };
 
@@ -466,9 +412,7 @@ const GameComponent = ({ settings, setStep }) => {
 
         // TRUNCATION LOGIC: Slice valChars if truncateIndex is active
         let valChars = data.val.split('');
-        if (override.roundedVal !== undefined) {
-          valChars = override.roundedVal.split('');
-        } else if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
+        if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
           valChars = valChars.slice(0, override.truncateIndex + 1);
         }
 
@@ -609,26 +553,13 @@ const GameComponent = ({ settings, setStep }) => {
             >
               {isGloballyTruncated ? 'Truncated' : 'Truncate'}
             </button>
-            {/* Round Button */}
-            <button 
-              onClick={handleGlobalRound} 
-              className="reset-btn" 
-              style={{ 
-                margin: 0, flex: 1,
-                backgroundColor: isGloballyRounded ? 'rgba(139, 92, 246, 0.25)' : undefined,
-                color: isGloballyRounded ? '#8b5cf6' : undefined,
-                borderColor: isGloballyRounded ? '#8b5cf6' : undefined
-              }}
-            >
-              {isGloballyRounded ? 'Rounded' : 'Round'}
-            </button>
 
             {/* Organize Button */}
             <button
               onClick={handleGlobalOrganize}
               className="reset-btn"
               style={{
-                margin: 0, flex: 1.5,
+                margin: 0, flex: 1,
                 backgroundColor: isGloballyOrganized ? 'rgba(16, 185, 129, 0.25)' : undefined,
                 color: isGloballyOrganized ? '#10b981' : undefined,
                 borderColor: isGloballyOrganized ? '#10b981' : undefined
@@ -703,9 +634,7 @@ const GameComponent = ({ settings, setStep }) => {
               // TRUNCATE STRING FOR UI:
               let displayStr = str;
             if (isVal) {
-              if (override.roundedVal !== undefined) {
-                displayStr = override.roundedVal;
-              } else if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
+              if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
                 displayStr = str.substring(0, override.truncateIndex + 1);
               }
             }
