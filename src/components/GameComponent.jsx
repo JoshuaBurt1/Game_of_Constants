@@ -191,14 +191,20 @@ const GameComponent = ({ settings, setStep }) => {
           }
         });
 
-        // Store per-grid results
+        // Calculate unused digits specifically for THIS grid
+        const unusedInThisGrid = digitTokens
+          .filter(token => token && token.stableId && !selectionsArray.includes(token.stableId))
+          .map(token => token.originalDigit || token.token);
+
+        // Update the gridMetrics object for this type
         gridMetrics[type] = {
-          startingTotal: gridStartingTotal, // NEW
-          endingTotal: gridEndingTotal,     // NEW
+          startingTotal: gridStartingTotal,
+          endingTotal: gridEndingTotal,
           changed: gridChanged,
           unchanged: gridUnchanged,
           percentChanged: gridEndingTotal > 0 ? Number(((gridChanged / gridEndingTotal) * 100).toFixed(1)) : 0,
-          percentUnchanged: gridEndingTotal > 0 ? Number(((gridUnchanged / gridEndingTotal) * 100).toFixed(1)) : 0
+          percentUnchanged: gridEndingTotal > 0 ? Number(((gridUnchanged / gridEndingTotal) * 100).toFixed(1)) : 0,
+          unusedDigits: unusedInThisGrid // <--- ADD THIS LINE
         };
 
         // Add to aggregate totals

@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import GameComponent from './components/GameComponent';
 import HighscoresView from './components/HighscoresView';
 import backgroundImage from './assets/background_home.png';
-import backgroundImage800 from './assets/placeholder.png';
-import backgroundImage3 from './assets/highscore.png';
 
 import './App.css';
 
