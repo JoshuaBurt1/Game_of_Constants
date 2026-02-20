@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import './Highscores.css';
+import camelBlueImg from '../assets/blue_camel.png'; 
+import camelGreenImg from '../assets/green_camel.png';
+import sndImg from '../assets/snd.png';
+
 
 const LoadingBox = () => (
   <div className="loading-box">
@@ -9,6 +13,17 @@ const LoadingBox = () => (
     <div className="loading-text">Retrieving Archives...</div>
   </div>
 );
+
+const renderSigmaStat = (val, styledArr) => {
+  if (styledArr && styledArr.length > 0) {
+    return styledArr.map((obj, i) => (
+      <span key={i} style={{ color: obj.color || 'inherit', fontWeight: obj.color ? 'bold' : 'normal' }}>
+        {obj.char}
+      </span>
+    ));
+  }
+  return val; // Fallback for legacy scores
+};
 
 function HighscoresView({ onBack }) {
   const [scores, setScores] = useState([]);
@@ -73,6 +88,7 @@ function HighscoresView({ onBack }) {
                   <th>EQUATION</th>
                   <th>REMAINING</th>
                   <th>DIGIT STATS</th>
+                  <th>BADGES</th>
                   <th>DATE</th>
                 </tr>
               </thead>
@@ -90,7 +106,7 @@ function HighscoresView({ onBack }) {
                         <div style={{ fontWeight: 'bold', fontSize: '0.8rem' }}>{s.word}</div>
                         <div style={{ fontSize: '0.65rem', color: '#666', marginBottom: '6px' }}>{s.language}</div>
                         {s.grids?.length > 0 && (
-                          <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                             {[...s.grids]
                               .sort((a, b) => b.localeCompare(a)) 
                               .map((g, idx) => (
@@ -104,15 +120,22 @@ function HighscoresView({ onBack }) {
                       <td className="hs-cell" style={cellStyle}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                           {s.isTruncated && <span className="hs-modifier truncated">Truncated</span>}
-                          {s.isRounded && <span className="hs-modifier rounded">Rounded</span>}
                           {s.isOrganized && <span className="hs-modifier organized">Organized</span>}
                           {(!s.isTruncated && !s.isRounded && !s.isOrganized) && <span className="hs-badge" style={{ opacity: 0.3 }}>None</span>}
                         </div>
                       </td>
 
                       <td className="hs-cell" style={cellStyle}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center', fontSize: '0.75rem' }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: '4px', 
+                          alignItems: 'flex-start', // Changed from center to left-align
+                          paddingLeft: '12px',      // Adds a nice gutter for the left alignment
+                          fontSize: '0.75rem' 
+                        }}>
                           {(() => {
+                            // 1. Identify if a completed equation exists for this score entry
                             const hasEquation = s.associatedEquation && s.associatedEquation !== "";
                             const isEquationComplete = hasEquation && 
                               s.equationMembers?.length > 0 && 
@@ -120,16 +143,33 @@ function HighscoresView({ onBack }) {
                                 s.results?.some(res => res.symbol === member && parseFloat(res.percent) >= 99.9)
                               );
 
-                            return s.results?.slice(0, 7).map((res, idx) => {
+                            return s.results?.slice(0, 6).map((res, idx) => {
+                              // 2. Logic for highlighting and bolding
                               const isMember = s.equationMembers?.includes(res.symbol);
                               const shouldHighlight = isMember && isEquationComplete;
+
                               return (
                                 <div 
                                   key={idx} 
                                   className={`hs-match-item ${shouldHighlight ? 'highlighted' : ''}`}
-                                  style={{ fontWeight: isMember ? 'bold' : 'normal' }}
+                                  style={{ 
+                                    fontWeight: isMember ? 'bold' : 'normal',
+                                    whiteSpace: 'nowrap',
+                                  }}
                                 >
-                                  {res.symbol}: <strong>{res.percent}%</strong>
+                                  <strong>[{res.percent}%]</strong>
+                                  <span> {res.symbol} =</span>
+                                  
+                                  {/* Structured scientific notation reflecting in-game Org/Truncate state */}
+                                  <span style={{ opacity: 0.7, marginLeft: '6px', fontSize: '0.7rem', fontFamily: 'monospace' }}>
+                                    {res.matchedVal}
+                                    {res.matchedMult && ` × ${res.matchedMult}`}
+                                    {res.matchedExp && (
+                                      <sup style={{ fontSize: '0.5rem' }}>
+                                        {res.matchedMag}{res.matchedExp}
+                                      </sup>
+                                    )}
+                                  </span>
                                 </div>
                               );
                             });
@@ -144,7 +184,7 @@ function HighscoresView({ onBack }) {
                               <div style={{ fontSize: '0.6rem', color: '#666', textTransform: 'uppercase' }}>
                                 {s.associatedId?.replace(/_/g, ' ')}
                               </div>
-                              <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#4ade80', fontFamily: 'serif' }}>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#10b981', fontFamily: 'serif' }}>
                                 {s.associatedEquation}
                               </div>
                             </>
@@ -179,11 +219,12 @@ function HighscoresView({ onBack }) {
                         </div>
                       </td>
 
+                      {/* Digits */}
                       <td className="hs-cell" style={cellStyle}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left', minWidth: '160px' }}>
                           <div style={{ paddingBottom: '6px', borderBottom: (s.gridBreakdown && isExpanded) ? '1px solid #333' : 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '0.6rem', fontWeight: 'bold', color: '#888', textTransform: 'uppercase' }}>Total Aggregate</span>
+                              <span style={{ fontSize: '0.6rem', fontWeight: 'bold', color: '#888', textTransform: 'uppercase' }}>Digit Stats</span>
                               {s.gridBreakdown && (
                                 <button className="hs-grid-btn" onClick={() => toggleGrid(s.id)}>
                                   {isExpanded ? 'Hide' : 'Grids'}
@@ -191,9 +232,54 @@ function HighscoresView({ onBack }) {
                                 </button>
                               )}
                             </div>
-                            <div className="hs-stat-text">Start/End: <span className="hs-stat-val">{s.startingTotal} / {s.totalDigitsDisplayed}</span></div>
-                            <div className="hs-stat-text">Changed: <span className="hs-stat-val">{s.changedDigits}</span> ({s.percentageChanged}%)</div>
-                            <div className="hs-stat-text">Unchanged: <span className="hs-stat-val">{s.unchangedDigits}</span> ({s.percentageUnchanged}%)</div>
+
+                            {/* 1. Total Matched Digits (Sum of all 100% matches) */}
+                           <div className="hs-stat-text">
+                              Digits: <span className="hs-stat-val">
+                                {s.results
+                                  ?.filter(res => res.isPerfect)
+                                  .map((res, i, arr) => (
+                                    <span key={i}>
+                                      {res.symbol}: 
+                                      {/* 1. If styledDigits exists, map through it */}
+                                      {res.styledDigits ? (
+                                        res.styledDigits.map((digitObj, dIdx) => (
+                                          <span 
+                                            key={dIdx} 
+                                            style={{ 
+                                              color: digitObj.color || 'inherit', 
+                                              fontWeight: digitObj.color ? 'bold' : 'normal' 
+                                            }}
+                                          >
+                                            {digitObj.char}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        /* 2. Fallback for legacy data: just show the number plain */
+                                        <span>{res.perfectDigitCount}</span>
+                                      )}
+                                      {i < arr.length - 1 ? ', ' : ''}
+                                    </span>
+                                  )) || ""}
+                              </span>
+                            </div>
+                            <div className="hs-stat-text">
+                              Start/End: <span className="hs-stat-val">
+                                {renderSigmaStat(s.startingTotal, s.sigmaStyledStats?.startingTotal)} / {s.totalDigitsDisplayed}
+                              </span>
+                            </div>
+
+                            <div className="hs-stat-text">
+                              Changed: <span className="hs-stat-val">
+                                {renderSigmaStat(s.aggregateStartChanged, s.sigmaStyledStats?.aggregateStartChanged)} / {renderSigmaStat(s.changedDigits, s.sigmaStyledStats?.changedDigits)}
+                              </span> ({s.aggregatePercentChangedStart}) / ({s.percentageChanged}%)
+                            </div>
+
+                            <div className="hs-stat-text">
+                              Unchanged: <span className="hs-stat-val">
+                                {s.unchangedDigits}
+                              </span> ({renderSigmaStat(s.aggregatePercentUnchangedStart, s.sigmaStyledStats?.aggregatePercentUnchangedStart)}) / ({s.percentageUnchanged}%)
+                            </div>
                           </div>
 
                           {isExpanded && s.gridBreakdown && 
@@ -204,12 +290,31 @@ function HighscoresView({ onBack }) {
                                   <div className="hs-grid-label">{gridName}</div>
                                   <div className="hs-stat-text" style={{ fontSize: '0.65rem' }}>
                                     <div>Start/End: <span className="hs-stat-val">{metrics.startingTotal} / {metrics.endingTotal}</span></div>
-                                    <div>Changed: <span className="hs-stat-val">{metrics.changed}</span> ({metrics.percentChanged}%)</div>
-                                    <div>Unchanged: <span className="hs-stat-val">{metrics.unchanged}</span> ({metrics.percentUnchanged}%)</div>
+                                    <div>Changed: <span className="hs-stat-val">{metrics.gridStartChanged} / {metrics.changed}</span> ({metrics.percentChangedStart}) / ({metrics.percentChanged}%)</div>
+                                    <div>Unchanged: <span className="hs-stat-val">{metrics.unchanged}</span> ({metrics.percentUnchangedStart}) / ({metrics.percentUnchanged}%)</div>
                                   </div>
                                 </div>
                               ))
                           }
+                        </div>
+                      </td>
+
+                      {/* badges */}
+                      <td className="hs-cell" style={cellStyle}>
+                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                          {s.badges?.map(badge => {
+                            if (badge === "green_camel") {
+                              return <img key={badge} src={camelGreenImg} style={{ width: '20px', height: '20px' }} />;
+                            }
+                            if (badge === "blue_camel") {
+                              return <img key={badge} src={camelBlueImg} style={{ width: '20px', height: '20px' }} />;
+                            }
+                            if (badge === "sigma"){
+                              return <img key={badge} src={sndImg} style={{ width: '20px', height: '20px' }} />;
+                            }
+                            return null;
+                          })}
+                          {(!s.badges || s.badges.length === 0) && <span style={{ color: '#444' }}>—</span>}
                         </div>
                       </td>
 

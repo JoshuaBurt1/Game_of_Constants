@@ -13,11 +13,7 @@ import {
   SYMBOLS, 
   PALETTE 
 } from '../utils/constants';
-import { 
-  getPermutations, 
-  getSquareShellData, 
-  getHexagonData 
-} from '../utils/gridUtils';
+import { getPermutations, getSquareShellData, getHexagonData } from '../utils/gridUtils';
 
 // --- GAME COMPONENT ---
 const GameComponent = ({ settings, setStep }) => {
@@ -148,20 +144,18 @@ const GameComponent = ({ settings, setStep }) => {
     try {
       const selectionsArray = Object.values(selections).flatMap(gridMap => Object.keys(gridMap));
       const allGridTokens = Object.values(gridTokens).flat();
-      
-      // --- UPDATED MULTI-GRID TRACKING ---
+
+      // 1. Grid Metrics & Aggregates
       const gridMetrics = {};
-      let aggregateStartingTotal = 0; // Track original digit count
-      let aggregateEndingTotal = 0;   // Track current digit count
+      let aggregateStartingTotal = 0;
+      let aggregateEndingTotal = 0;
       let aggregateChanged = 0;
       let aggregateUnchanged = 0;
 
       settings.gridTypes.forEach(type => {
-        // 1. Get tokens for THIS specific grid (Current State)
         const tokensForThisGrid = gridTokens[type] || [];
         const digitTokens = tokensForThisGrid.filter(t => t && !t.isSymbol);
-        
-        // 2. Reconstruct original pool for THIS grid (Starting State)
+
         const originalPool = [];
         const initialTokens = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
         initialTokens.forEach(item => {
@@ -171,69 +165,144 @@ const GameComponent = ({ settings, setStep }) => {
           }
         });
 
-        // Capture starting total before originalPool is modified by splicing
         const gridStartingTotal = originalPool.length;
         const gridEndingTotal = digitTokens.length;
 
-        // 3. Compare current state vs original pool
         let gridChanged = 0;
         let gridUnchanged = 0;
 
         digitTokens.forEach(token => {
           const val = String(token.token);
           const foundIdx = originalPool.indexOf(val);
-          
           if (foundIdx !== -1) {
             gridUnchanged++;
-            originalPool.splice(foundIdx, 1); // Remove so duplicates aren't double-counted
+            originalPool.splice(foundIdx, 1);
           } else {
             gridChanged++;
           }
         });
 
-        // Calculate unused digits specifically for THIS grid
         const unusedInThisGrid = digitTokens
           .filter(token => token && token.stableId && !selectionsArray.includes(token.stableId))
           .map(token => token.originalDigit || token.token);
 
-        // Update the gridMetrics object for this type
         gridMetrics[type] = {
           startingTotal: gridStartingTotal,
           endingTotal: gridEndingTotal,
+          gridStartChanged: gridStartingTotal - gridUnchanged,
           changed: gridChanged,
           unchanged: gridUnchanged,
+          percentChangedStart: gridStartingTotal > 0 ? Number((( (gridStartingTotal - gridUnchanged) / gridStartingTotal) * 100).toFixed(1)) : 0,
           percentChanged: gridEndingTotal > 0 ? Number(((gridChanged / gridEndingTotal) * 100).toFixed(1)) : 0,
+          percentUnchangedStart: gridStartingTotal > 0 ? Number(((gridUnchanged / gridStartingTotal) * 100).toFixed(1)) : 0,
           percentUnchanged: gridEndingTotal > 0 ? Number(((gridUnchanged / gridEndingTotal) * 100).toFixed(1)) : 0,
           unusedDigits: unusedInThisGrid 
         };
 
-        // Add to aggregate totals
         aggregateStartingTotal += gridStartingTotal;
         aggregateEndingTotal += gridEndingTotal;
         aggregateChanged += gridChanged;
         aggregateUnchanged += gridUnchanged;
       });
 
-      // Calculate final aggregate percentages based on the Ending Total
-      const aggregatePercentChanged = aggregateEndingTotal > 0 
-        ? Number(((aggregateChanged / aggregateEndingTotal) * 100).toFixed(1)) 
-        : 0;
-      const aggregatePercentUnchanged = aggregateEndingTotal > 0 
-        ? Number(((aggregateUnchanged / aggregateEndingTotal) * 100).toFixed(1)) 
-        : 0;
-
-      // ------------------------------------
-
+      const aggregateStartChanged = aggregateStartingTotal - aggregateUnchanged;
       const remainingDigits = allGridTokens
         .filter(token => token && token.stableId && !token.isSymbol && !selectionsArray.includes(token.stableId))
         .map(token => token.originalDigit || token.token);
 
-      const performance = matchResults.map(m => ({
-        symbol: m.symbol,
-        percent: m.percent.toFixed(1)
-      }));
+      // 2. Map Performance with Styled Digits
+      const performance = matchResults.map(m => {
+        const userBank = [...(colorDigitMap[m.dominantColor] || [])];
+        const data = m.data;
+        const override = cardOverrides[m.symbol] || {};
+        
+        let valStr = data.val || "";
+        if (isGloballyTruncated && override.truncateIndex !== undefined && override.truncateIndex !== -1) {
+          valStr = valStr.substring(0, override.truncateIndex + 1);
+        }
 
-      // --- FIND COMPLETED SET ---
+        let sacrificedIndices = new Set();
+        let reservedForOther = [];
+        if (isGloballyOrganized) {
+          const tempBank = [...userBank];
+          const otherStr = (data.mult || "") + (data.exp || "");
+          const valMatches = [];
+          valStr.split('').forEach((char, i) => {
+            const bIdx = tempBank.indexOf(char);
+            if (/[0-9]/.test(char) && bIdx !== -1) {
+              valMatches.push({ char, i });
+              tempBank.splice(bIdx, 1);
+            }
+          });
+          const gaps = [];
+          otherStr.split('').forEach(char => {
+            if (/[0-9]/.test(char)) {
+              const bIdx = tempBank.indexOf(char);
+              if (bIdx !== -1) tempBank.splice(bIdx, 1);
+              else gaps.push(char);
+            }
+          });
+          gaps.forEach(gapChar => {
+            for (let i = valMatches.length - 1; i >= 0; i--) {
+              if (valMatches[i].char === gapChar) {
+                sacrificedIndices.add(valMatches[i].i);
+                reservedForOther.push(gapChar);
+                valMatches.splice(i, 1);
+                break;
+              }
+            }
+          });
+        }
+
+        const getSegmentMatches = (str, segmentType) => {
+          if (!str) return "";
+          const isVal = segmentType === 'val';
+          const currentReserved = [...reservedForOther];
+          const currentBank = [...userBank];
+          let result = "";
+          str.split('').forEach((char, idx) => {
+            if (/[0-9]/.test(char)) {
+              const bIdx = currentBank.indexOf(char);
+              const isSacrificed = isVal && sacrificedIndices.has(idx);
+              if (bIdx !== -1 && !isSacrificed) {
+                const countInBank = currentBank.filter(c => c === char).length;
+                const countReserved = currentReserved.filter(c => c === char).length;
+                if (countInBank > countReserved) {
+                  result += char;
+                  currentBank.splice(bIdx, 1);
+                } else {
+                  if (countReserved > 0) currentReserved.splice(currentReserved.indexOf(char), 1);
+                  result += "_";
+                }
+              } else {
+                result += "_";
+              }
+            } else {
+              result += char;
+            }
+          });
+          return result;
+        };
+
+        const matchedVal = getSegmentMatches(valStr, 'val');
+        const matchedMult = getSegmentMatches(data.mult, 'mult');
+        const matchedExp = getSegmentMatches(data.exp, 'exp');
+        const countDigits = (str) => (str ? (str.match(/[0-9]/g) || []).length : 0);
+        
+        const isPerfect = parseFloat(m.percent) >= 99.9;
+        const totalDigitsForThis = countDigits(valStr) + countDigits(data.mult) + countDigits(data.exp);
+
+        return {
+          symbol: m.symbol,
+          percent: m.percent.toFixed(1),
+          matchedVal, matchedMult, matchedMag: data.mag, matchedExp, unit: data.unit,
+          perfectDigitCount: isPerfect ? totalDigitsForThis : 0,
+          isPerfect,
+          styledDigits: isPerfect ? totalDigitsForThis.toString().split('').map(d => ({ char: d, color: null })) : []
+        };
+      });
+
+      // 3. --- FIND COMPLETED SET (The Missing Block) ---
       let eqId = "None";
       let eqString = "";
       let originalSet = null;
@@ -255,6 +324,106 @@ const GameComponent = ({ settings, setStep }) => {
         }
       }
 
+      // 4. --- BADGE IDENTIFICATION & STYLING ---
+      const badgeList = [];
+      const badgeTargets = {
+        "green_camel": { digits: ["2", "1", "9"], color: "#10b981" },
+        "blue_camel": { digits: ["7", "3"], color: "#3b82f6" }
+      };
+
+      const allDigitsPool = performance
+        .filter(p => p.isPerfect)
+        .map(p => p.perfectDigitCount.toString())
+        .join('');
+
+      const checkAndStyleBadge = (badgeKey) => {
+        const { digits, color } = badgeTargets[badgeKey];
+        const pool = allDigitsPool.split('');
+        let tempPool = [...pool];
+        
+        const isMatch = digits.every(d => {
+          const idx = tempPool.indexOf(d);
+          if (idx !== -1) {
+            tempPool.splice(idx, 1);
+            return true;
+          }
+          return false;
+        });
+
+        if (isMatch) {
+          badgeList.push(badgeKey);
+          digits.forEach(targetChar => {
+            for (let p of performance) {
+              if (!p.isPerfect) continue;
+              const digitObj = p.styledDigits.find(sd => sd.char === targetChar && !sd.color);
+              if (digitObj) {
+                digitObj.color = color;
+                break; 
+              }
+            }
+          });
+        }
+      };
+
+      checkAndStyleBadge("green_camel");
+      checkAndStyleBadge("blue_camel");
+
+      // --- NEW: SIGMA BADGE LOGIC (STAT PERMUTATIONS) ---
+      const aggregatePercentUnchangedStart = aggregateStartingTotal > 0 
+        ? Number(((aggregateUnchanged / aggregateStartingTotal) * 100).toFixed(1)) 
+        : 0;
+
+      const sigmaStyledStats = {
+        startingTotal: String(aggregateStartingTotal).split('').map(c => ({ char: c, color: null })),
+        aggregateStartChanged: String(aggregateStartChanged).split('').map(c => ({ char: c, color: null })),
+        changedDigits: String(aggregateChanged).split('').map(c => ({ char: c, color: null })),
+        aggregatePercentUnchangedStart: String(aggregatePercentUnchangedStart).split('').map(c => ({ char: c, color: null }))
+      };
+
+      const sigmaPool = [
+        ...String(aggregateStartingTotal).split(''),
+        ...String(aggregateStartChanged).split(''),
+        ...String(aggregateChanged).split(''),
+        ...String(aggregatePercentUnchangedStart).split('')
+      ];
+
+      const checkSigmaBadge = (digits) => {
+        let tempPool = [...sigmaPool];
+        return digits.every(d => {
+          const idx = tempPool.indexOf(d);
+          if (idx !== -1) {
+            tempPool.splice(idx, 1);
+            return true;
+          }
+          return false;
+        });
+      };
+
+      let sigmaTargetColor = "#FF69B4";
+      let sigmaTargetSet = null;
+
+      // Check 34.1 first, fallback to 34
+      if (checkSigmaBadge(["3", "4", "1"])) {
+        sigmaTargetSet = ["3", "4", "1"];
+      } else if (checkSigmaBadge(["3", "4"])) {
+        sigmaTargetSet = ["3", "4"];
+      }
+
+      if (sigmaTargetSet) {
+        badgeList.push("sigma");
+        sigmaTargetSet.forEach(targetChar => {
+          const keys = ['startingTotal', 'aggregateStartChanged', 'changedDigits', 'aggregatePercentUnchangedStart'];
+          for (const key of keys) {
+            const digitObj = sigmaStyledStats[key].find(sd => sd.char === targetChar && !sd.color);
+            if (digitObj) {
+              digitObj.color = sigmaTargetColor;
+              break; // Stop after coloring one instance per required digit
+            }
+          }
+        });
+      }
+
+      // 5. Build and Submit Data
       const highscoreData = {
         topic: settings.topic || "General",
         word: settings.word,
@@ -262,19 +431,19 @@ const GameComponent = ({ settings, setStep }) => {
         language: settings.language,
         grids: settings.gridTypes,
         results: performance,
+        badges: badgeList,
+        sigmaStyledStats: sigmaStyledStats,
         unusedDigits: remainingDigits,
-        
-        // Combined Totals
         startingTotal: aggregateStartingTotal,
         totalDigitsDisplayed: aggregateEndingTotal,
-        changedDigits: aggregateChanged,             
-        unchangedDigits: aggregateUnchanged,           
-        percentageChanged: aggregatePercentChanged,          
-        percentageUnchanged: aggregatePercentUnchanged,
-        
-        // Detailed Breakdowns (for Highscore view)
+        aggregateStartChanged: aggregateStartChanged,
+        changedDigits: aggregateChanged, 
+        unchangedDigits: aggregateUnchanged, 
+        aggregatePercentChangedStart: aggregateStartingTotal > 0 ? Number(((aggregateStartChanged / aggregateStartingTotal) * 100).toFixed(1)) : 0, 
+        percentageChanged: aggregateEndingTotal > 0 ? Number(((aggregateChanged / aggregateEndingTotal) * 100).toFixed(1)) : 0,
+        aggregatePercentUnchangedStart: aggregateStartingTotal > 0 ? Number(((aggregateUnchanged / aggregateStartingTotal) * 100).toFixed(1)) : 0, 
+        percentageUnchanged: aggregateEndingTotal > 0 ? Number(((aggregateUnchanged / aggregateEndingTotal) * 100).toFixed(1)) : 0,
         gridBreakdown: gridMetrics, 
-
         timestamp: serverTimestamp(),
         isTruncated: isGloballyTruncated,
         isOrganized: isGloballyOrganized,
