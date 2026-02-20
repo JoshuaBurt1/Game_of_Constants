@@ -120,7 +120,7 @@ function HighscoresView({ onBack }) {
                                 s.results?.some(res => res.symbol === member && parseFloat(res.percent) >= 99.9)
                               );
 
-                            return s.results?.slice(0, 6).map((res, idx) => {
+                            return s.results?.slice(0, 7).map((res, idx) => {
                               const isMember = s.equationMembers?.includes(res.symbol);
                               const shouldHighlight = isMember && isEquationComplete;
                               return (

@@ -50,7 +50,7 @@ export default function App() {
 
     if (step === 'LANG') return (
       <MenuWrapper title="Language">
-        {["Hebrew", "Ancient Greek", "Arabic"].map(l => (
+        {["Hebrew", "Ancient Greek", "Arabic", "Sanskrit"].map(l => (
           <button key={l} className="home-menu-btn" onClick={() => { setSettings({...settings, language: l}); setStep('GRID'); }}>{l}</button>
         ))}
       </MenuWrapper>

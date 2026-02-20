@@ -1,17 +1,20 @@
 export const ZODIAC_MAPS = {
   "Hebrew": {"Rat":292, "Ox":506, "Tiger":142, "Rabbit":653, "Dragon":510, "Snake":358, "Horse":126, "Goat":77, "Monkey":186, "Rooster":336, "Dog": 52, "Pig":225},
   "Ancient Greek": {"Rat":640, "Ox":672, "Tiger":623, "Rabbit":470, "Dragon":975, "Snake":780, "Horse":440, "Goat":71, "Monkey":397, "Rooster":1256, "Dog": 1270, "Pig":800},
-  "Arabic": {"Rat":281, "Ox": 706, "Tiger": 290, "Rabbit": 253, "Dragon": 510, "Snake": 23, "Horse": 149, "Goat": 117, "Monkey": 304, "Rooster": 34, "Dog": 52, "Pig": 867}
+  "Arabic": {"Rat":281, "Ox": 706, "Tiger": 290, "Rabbit": 253, "Dragon": 510, "Snake": 23, "Horse": 149, "Goat": 117, "Monkey": 304, "Rooster": 34, "Dog": 52, "Pig": 867}, 
+  "Sanskrit": {"Rat": 165, "Ox": 424, "Tiger": 414, "Rabbit": 155, "Dragon": 30, "Snake": 127, "Horse": 45, "Goat": 8, "Monkey": 11, "Rooster": 111, "Dog": 27, "Pig": 824}
 };
 
 export const ZODIAC_NAMES = {
   "Hebrew": {"Rat": "עַכְבָּר", "Ox":"שׁוֹר", "Tiger":"חִדֶּקֶל", "Rabbit":"אַרְנֶבֶת", "Dragon":"תַנִּין", "Snake":"נָחָשׁ", "Horse":"סוס", "Goat":"עֵז", "Monkey":"קוף", "Rooster":"שֶׂכְוִי", "Dog":"כֶּלֶב", "Pig":"חזיר"},
   "Ancient Greek": {"Rat": "μῦς", "Ox":"βοῦς", "Tiger":"Τίγρις", "Rabbit":"κόνικλος", "Dragon":"δράκων", "Snake":"ὄφις", "Horse":"ἵππος", "Goat":"αἴξ", "Monkey":"πίθηκος", "Rooster":"ἀλέκτωρ", "Dog":"Κύων", "Pig":"σῦς"},
-  "Arabic": {"Rat": "فَأْر", "Ox": "ثَوْر", "Tiger": "نَمِر", "Rabbit": "أَرْنَب", "Dragon": "تِنِّين", "Snake": "حَيَّة", "Horse": "حِصَان", "Goat": "مَاعِز", "Monkey": "قِرْد", "Rooster": "دِيك", "Dog": "كَلْب", "Pig": "خِنْزِير"}
+  "Arabic": {"Rat": "فَأْر", "Ox": "ثَوْر", "Tiger": "نَمِر", "Rabbit": "أَرْنَب", "Dragon": "تِنِّين", "Snake": "حَيَّة", "Horse": "حِصَان", "Goat": "مَاعِز", "Monkey": "قِرْد", "Rooster": "دِيك", "Dog": "كَلْب", "Pig": "خِنْزِير"},
+  "Sanskrit": {"Rat": "मूषकम्", "Ox": "वृषभम्", "Tiger": "व्याघ्रम्", "Rabbit": "शशकम्", "Dragon": "नागम्", "Snake": "सर्पम्", "Horse": "अश्वम्", "Goat": "अजम्", "Monkey": "कपिम्", "Rooster": "कुक्कुटम्", "Dog": "सरम्", "Pig": "वराहम्"}
 };
-// Rat and Ox seems to be correct for all languages
-//دِجْلَة= 437 (Tigris River)
+// Rat seems to be correct for Hebrew, Ancient Greek, Arabic, Sanskrit
+// Arabic: دِجْلَة= 437 (Tigris River)
 // For Ox (Arabic)-> 1 remainder 6th value 90.9% (gold); if 8 is separate for κ = 8πG/c^4 (68: 1 sigma)
+// Sanskrit: "Rooster,कृकवाकुम्": 14121,
 
 export const EQUATION_SETS = [
   { id: "reduced planck", equation: "ℏ=ℎ/2π", members: ["ℎ", "ℏ", "2π"]},

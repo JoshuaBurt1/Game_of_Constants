@@ -204,7 +204,7 @@ const GameComponent = ({ settings, setStep }) => {
           unchanged: gridUnchanged,
           percentChanged: gridEndingTotal > 0 ? Number(((gridChanged / gridEndingTotal) * 100).toFixed(1)) : 0,
           percentUnchanged: gridEndingTotal > 0 ? Number(((gridUnchanged / gridEndingTotal) * 100).toFixed(1)) : 0,
-          unusedDigits: unusedInThisGrid // <--- ADD THIS LINE
+          unusedDigits: unusedInThisGrid 
         };
 
         // Add to aggregate totals
