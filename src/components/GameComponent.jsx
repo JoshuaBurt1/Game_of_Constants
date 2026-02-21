@@ -328,7 +328,8 @@ const GameComponent = ({ settings, setStep }) => {
       const badgeList = [];
       const badgeTargets = {
         "green_camel": { digits: ["2", "1", "9"], color: "#10b981" },
-        "blue_camel": { digits: ["7", "3"], color: "#3b82f6" }
+        "blue_camel": { digits: ["7", "3"], color: "#3b82f6" },
+        "sigma": { digits: ["3", "4"], color: "#FF69B4" } // version 2: digits: ["3", "4", "1"]
       };
 
       const allDigitsPool = performance
@@ -592,61 +593,26 @@ const GameComponent = ({ settings, setStep }) => {
         }
 
         const otherDigits = ((data.mult || "") + (data.exp || "")).split('').filter(char => /[0-9]/.test(char));
+        const allRequiredDigits = [...valChars.filter(c => /[0-9]/.test(c)), ...otherDigits];
 
         let maxPercent = 0;
         let bestColor = null;
 
         PALETTE.forEach(color => {
           const userBank = [...(colorMap[color] || [])];
-          let sacrificedIndices = new Set();
-
-          if (override.isOrganized) {
-            let ghostBank = [...userBank];
-            valChars.forEach(char => {
-              const bIdx = ghostBank.indexOf(char);
-              if (/[0-9]/.test(char) && bIdx !== -1) ghostBank.splice(bIdx, 1);
-            });
-            const gaps = [];
-            otherDigits.forEach(char => {
-              const bIdx = ghostBank.indexOf(char);
-              if (bIdx !== -1) ghostBank.splice(bIdx, 1);
-              else gaps.push(char);
-            });
-            const currentGaps = [...gaps];
-            for (let i = valChars.length - 1; i >= 0; i--) {
-              const char = valChars[i];
-              const gapIdx = currentGaps.indexOf(char);
-              const bankIdx = userBank.indexOf(char);
-              if (/[0-9]/.test(char) && gapIdx !== -1 && bankIdx !== -1) {
-                sacrificedIndices.add(i);
-                currentGaps.splice(gapIdx, 1);
-              }
-            }
-          }
-
-          let matchedValCount = 0;
           let tempUserBank = [...userBank];
-          valChars.forEach((char, idx) => {
-            if (/[0-9]/.test(char)) {
-              const bankIdx = tempUserBank.indexOf(char);
-              if (!sacrificedIndices.has(idx) && bankIdx !== -1) {
-                matchedValCount++;
-                tempUserBank.splice(bankIdx, 1);
-              }
+          let totalMatched = 0;
+
+          // Unified Match Logic: Total matches are independent of organization order
+          allRequiredDigits.forEach(char => {
+            const bIdx = tempUserBank.indexOf(char);
+            if (bIdx !== -1) {
+              totalMatched++;
+              tempUserBank.splice(bIdx, 1);
             }
           });
 
-          let matchedOtherCount = 0;
-          otherDigits.forEach(char => {
-            const bankIdx = tempUserBank.indexOf(char);
-            if (bankIdx !== -1) {
-              matchedOtherCount++;
-              tempUserBank.splice(bankIdx, 1);
-            }
-          });
-
-          const totalRequired = valChars.filter(c => /[0-9]/.test(c)).length + otherDigits.length;
-          const totalMatched = matchedValCount + matchedOtherCount;
+          const totalRequired = allRequiredDigits.length;
           let percent = totalRequired > 0 ? (totalMatched / totalRequired) * 100 : 0;
 
           if (percent > maxPercent) { maxPercent = percent; bestColor = color; }
@@ -769,71 +735,62 @@ const GameComponent = ({ settings, setStep }) => {
             const isElevated = symbolsToElevate.has(m.symbol) && !isPerfect;
             const override = cardOverrides[m.symbol] || {};
             const parentSetName = isElevated ? EQUATION_SETS.find(s => s.members.includes(m.symbol) && activeSetIds.includes(s.id))?.id : null;
+            
             const visualBank = [...(colorDigitMap[m.dominantColor] || [])];
+            const tempBank = [...visualBank];
+            const matchedState = { val: [], mult: [], exp: [] };
 
-            const { map: sacrificedIndices, reserved: reservedForOther } = (() => {
-              if (!override.isOrganized) return { map: new Set(), reserved: [] };
-              const tempBank = [...visualBank], valStr = m.data.val || "", otherStr = (m.data.mult || "") + (m.data.exp || "");
-              
-              // Apply UI truncation to the organization logic if active
-              const displayValStr = (override.truncateIndex !== undefined && override.truncateIndex !== -1) 
-                ? valStr.substring(0, override.truncateIndex + 1) 
-                : valStr;
+            let displayValStr = m.data.val || "";
+            if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
+              displayValStr = displayValStr.substring(0, override.truncateIndex + 1);
+            }
+            const multStr = m.data.mult || "";
+            const expStr = m.data.exp || "";
 
-              const valMatches = [];
-              displayValStr.split('').forEach((char, i) => {
-                const bIdx = tempBank.indexOf(char);
-                if (/[0-9]/.test(char) && bIdx !== -1) { valMatches.push({ char, i }); tempBank.splice(bIdx, 1); }
-              });
-              const gaps = [];
-              otherStr.split('').forEach(char => {
+            // Helper to allocate matches based on string segment
+            const allocateMatches = (str) => {
+              return str.split('').map(char => {
                 if (/[0-9]/.test(char)) {
                   const bIdx = tempBank.indexOf(char);
-                  if (bIdx !== -1) tempBank.splice(bIdx, 1); else gaps.push(char);
+                  if (bIdx !== -1) {
+                    tempBank.splice(bIdx, 1);
+                    return true;
+                  }
                 }
+                return false;
               });
-              const sacMap = new Set(), res = [];
-              gaps.forEach(gapChar => {
-                for (let i = valMatches.length - 1; i >= 0; i--) {
-                  if (valMatches[i].char === gapChar) { sacMap.add(valMatches[i].i); res.push(gapChar); valMatches.splice(i, 1); break; }
-                }
-              });
-              return { map: sacMap, reserved: res };
-            })();
+            };
 
-            let hasValMatches = false, hasMultMatches = false;
-            const renderDigits = (str, segmentType) => {
-              if (!str) return null;
-              const isVal = segmentType === 'val';
-              
-              // TRUNCATE STRING FOR UI:
-              let displayStr = str;
-            if (isVal) {
-              if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
-                displayStr = str.substring(0, override.truncateIndex + 1);
-              }
+            // CLEAN PRIORITY ALLOCATION
+            if (override.isOrganized) {
+              // Priority: 1. exp, 2. mult, 3. val (Remaining pool)
+              matchedState.exp = allocateMatches(expStr);
+              matchedState.mult = allocateMatches(multStr);
+              matchedState.val = allocateMatches(displayValStr);
+            } else {
+              // Default Unorganized Priority: val, mult, exp
+              matchedState.val = allocateMatches(displayValStr);
+              matchedState.mult = allocateMatches(multStr);
+              matchedState.exp = allocateMatches(expStr);
             }
 
-            return displayStr.split('').map((char, idx) => {
+            let hasValMatches = matchedState.val.includes(true);
+            let hasMultMatches = matchedState.mult.includes(true) || matchedState.exp.includes(true);
+
+            const renderDigits = (str, segmentType) => {
+              if (!str) return null;
+              
+              let displayStr = segmentType === 'val' ? displayValStr : str;
+
+              return displayStr.split('').map((char, idx) => {
                 const isDigit = /[0-9]/.test(char);
-                let color = 'rgba(255,255,255,0.15)';
+                let color = 'rgba(255,255,255,0.15)'; 
+                
                 if (isDigit) {
-                  const isSacrificed = isVal && sacrificedIndices.has(idx);
-                  if (isVal) {
-                    if (!isSacrificed) {
-                      const bankIdx = visualBank.indexOf(char);
-                      if (bankIdx !== -1) {
-                        const countInBank = visualBank.filter(c => c === char).length;
-                        const countReserved = reservedForOther.filter(c => c === char).length;
-                        if (countInBank > countReserved) { color = '#ffffff'; hasValMatches = true; visualBank.splice(bankIdx, 1); }
-                        else if (countInBank > 0 && countReserved > 0) reservedForOther.splice(reservedForOther.indexOf(char), 1);
-                      }
-                    }
-                  } else {
-                    const bankIdx = visualBank.indexOf(char);
-                    if (bankIdx !== -1) { color = '#ffffff'; if (segmentType === 'mult') hasMultMatches = true; visualBank.splice(bankIdx, 1); }
-                  }
-                } else color = '#ffffff';
+                  if (matchedState[segmentType][idx]) color = '#ffffff'; // Match found
+                } else {
+                  color = '#ffffff'; // Non-digits (., -) are always rendered white
+                }
                 return <span key={idx} style={{ color, transition: 'all 0.2s' }}>{char}</span>;
               });
             };
