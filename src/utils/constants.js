@@ -13,13 +13,13 @@ export const ZODIAC_NAMES = {
 };
 // Rat seems to be correct for Hebrew, Ancient Greek, Arabic, Sanskrit
 // Arabic: دِجْلَة= 437 (Tigris River)
-// For Ox (Arabic)-> 1 remainder 6th value 90.9% (gold); if 8 is separate for κ = 8πG/c^4 (68: 1 sigma)
+// For Ox (Arabic)-> 1 remainder 6th value 90.9% (gold); if 8 is separate for κ = 8πG/c⁴ (68: 1 sigma)
 // Sanskrit: "Rooster,कृकवाकुम्": 14121,
 
 export const EQUATION_SETS = [
   { id: "reduced planck", equation: "ℏ=ℎ/2π", members: ["ℎ", "ℏ", "2π"]},
-  { id: "mass energy equivalence", equation: "ℏ*(1/c)^2=ℏ/c^2", members: ["(1/c)^2", "ℏ", "ℏ/c^2"]},
-  { id: "space-time curvature", equation: "κ = 8πG/c^4", members: ["κ", "8π", "G", "(1/c)^4"]},
+  { id: "mass energy equivalence", equation: "ℏ*1/c²=ℏ/c²", members: ["1/c²", "ℏ", "ℏ/c²"]},
+  { id: "space-time curvature", equation: "κ = 8πG/c⁴", members: ["κ", "8π", "G", "1/c⁴"]},
   { id: "fine structure", equation: "α*(1/α) = √α*√(1/α)", members: ["α", "1/α", "√α", "√(1/α)"]},
   /*
   { id: "einsteinian_gravity", equation: "G_μν = κT_μν", members: ["G", "κ", "c^2"]},
@@ -28,42 +28,42 @@ export const EQUATION_SETS = [
 
 export const CONSTANTS = {
   PLANCK: {
-    "ℏ": { sign:"", val: "1.054571817", mult: "10", mag: "-", exp: "34", unit: " kg·m²/s" },
-    "ℎ": { sign:"", val: "6.62607015", mult: "10", mag: "-", exp: "34", unit: " kg·m²/s" },
-    "ℏ/c^2": { sign:"", val: "1.17336939", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
-    "ℎ/c^2": { sign:"", val: "7.3724192313", mult: "10", mag: "-", exp: "51", unit: " kg·m/s" },
-    "2π": {sign:"", val: "2*3.1415926535", multi: "", mag: "", exp: "", unit: ""}
+    "ℏ": { sign:"", val: "1.054571817", mult: "10", mag: "-", exp: "34", unit: "kg¹·m²/s¹", dim: "121"},
+    "ℎ": { sign:"", val: "6.62607015", mult: "10", mag: "-", exp: "34", unit: " kg¹·m²/s¹", dim: "121"},
+    "ℏ/c²": { sign:"", val: "1.17336939", mult: "10", mag: "-", exp: "51", unit: " kg¹·m¹/s¹", dim: "111"},
+    "ℎ/c²": { sign:"", val: "7.3724192313", mult: "10", mag: "-", exp: "51", unit: " kg¹·m¹/s¹", dim: "111"},
+    "2π": {sign:"", val: "2*3.1415926535", multi: "", mag: "", exp: "", unit: "", dim: ""},
   },
   LIGHT: {
-    "c^2": { sign:"", val: "8.9875517873681764", mult: "10", mag: "", exp: "16", unit: " m²/s²" },
-    "c": { sign:"", val: "299792458", mult: "", mag: "", exp: "", unit: " m/s" },
-    "1/c": { sign:"", val: "3.3335640951", mult: "10", mag: "-", exp: "9", unit: " s/m" },
-    "(1/c)^2": { sign:"", val: "1.1126500560", mult: "10", mag: "-", exp: "17", unit: " s²/m²" },
+    "c²": { sign:"", val: "8.9875517873681764", mult: "10", mag: "", exp: "16", unit: " m²/s²", dim: "22"},
+    "c": { sign:"", val: "299792458", mult: "", mag: "", exp: "", unit: " m¹/s¹", dim: "11"},
+    "1/c": { sign:"", val: "3.3335640951", mult: "10", mag: "-", exp: "9", unit: " s¹/m¹", dim: "11"},
+    "1/c²": { sign:"", val: "1.1126500560", mult: "10", mag: "-", exp: "17", unit: " s²/m²", dim: "22"},
   },
   GRAVITY: {
-    "κ": { sign:"", val: "2.076647", mult: "10", mag: "-", exp: "43", unit: " s²/m·kg" },
-    "8π": {sign:"", val: "8*3.1415926535", multi: "", mag: "", exp: "", unit: ""},
-    "G": { sign:"", val: "6.67430", mult: "10", mag: "-", exp: "11", unit: " m³/kg·s²" },
-    "(1/c)^4": { sign:"", val: "1.2379901472", mult: "10", mag: "-", exp: "34", unit: " s²/m²" },
-    "G^2": { sign:"", val: "4.454628049", mult: "10", mag: "-", exp: "21", unit: " m⁶/kg²·s⁴" },
+    "κ": { sign:"", val: "2.076647", mult: "10", mag: "-", exp: "43", unit: " s²/m¹·kg¹", dim: "211"},
+    "8π": {sign:"", val: "8*3.1415926535", multi: "", mag: "", exp: "", unit: "", dim: ""},
+    "G": { sign:"", val: "6.67430", mult: "10", mag: "-", exp: "11", unit: " m³/kg¹·s²", dim: "312"},
+    "1/c⁴": { sign:"", val: "1.2379901472", mult: "10", mag: "-", exp: "34", unit: " s²/m²", dim: "22"},
+    "G²": { sign:"", val: "4.454628049", mult: "10", mag: "-", exp: "21", unit: " m⁶/kg²·s⁴", dim: "624"},
   },
   FINE_STRUCTURE: {
-    "1/α": { sign:"", val: "137.035999176", mult: "", mag: "", exp: "", unit: "" },
-    "α": { sign:"", val: "7.297352564", mult: "10", mag: "-", exp: "3", unit: "" },
-    "√α": { sign:"", val: "8.542454310", mult: "10", mag: "-", exp: "2", unit: "" },
-    "√(1/α)": { sign:"", val: "11.706237618", mult: "", mag: "", exp: "", unit: "" }
+    "1/α": { sign:"", val: "137.035999176", mult: "", mag: "", exp: "", unit: "", dim: ""},
+    "α": { sign:"", val: "7.297352564", mult: "10", mag: "-", exp: "3", unit: "", dim: ""},
+    "√α": { sign:"", val: "8.542454310", mult: "10", mag: "-", exp: "2", unit: "", dim: ""},
+    "√(1/α)": { sign:"", val: "11.706237618", mult: "", mag: "", exp: "", unit: "", dim: ""},
   },
   MAGNETIC: {
-    "μ0": { sign:"", val: "1.25663706", mult: "10", mag: "-", exp: "6", unit: " N/A²" }
+    "μ0": { sign:"", val: "1.25663706", mult: "10", mag: "-", exp: "6", unit: " kg¹·m¹/s²·A²", dim: "1122"},
   },
   ELECTRIC: {
-    "ε0": { sign:"", val: "8.85418782", mult: "10", mag: "-", exp: "12", unit: " F/m" }
+    "ε0": { sign:"", val: "8.85418782", mult: "10", mag: "-", exp: "12", unit: " s⁴·A²/kg¹·m³", dim: "4213"},
   },
   BOLTZMANN: {
-    "kB": { sign:"", val: "1.380649", mult: "10", mag: "-", exp: "23", unit: " J/K" }
+    "kB": { sign:"", val: "1.380649", mult: "10", mag: "-", exp: "23", unit: " kg¹·m²/s²·K¹", dim: "1221"},
   },
   TEMPERATURE: {
-    "T": { sign:"-", val: "273.15", mult: "", mag: "", exp: "", unit: " °C" }
+    "T": { sign:"-", val: "-273.15", mult: "", mag: "", exp: "", unit: " °C¹", dim: "1"},
   }
 };
 

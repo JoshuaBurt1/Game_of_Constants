@@ -27,8 +27,10 @@ const GameComponent = ({ settings, setStep }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [gridTokens, setGridTokens] = useState({});
   const [cardOverrides, setCardOverrides] = useState({});
-  const [isGloballyOrganized, setIsGloballyOrganized] = useState(false);
   const [isGloballyTruncated, setIsGloballyTruncated] = useState(false);
+  const [isGloballyOrganized, setIsGloballyOrganized] = useState(false);
+  const [isGloballyDimensioned, setIsGloballyDimensioned] = useState(false);
+
 
   // Global Organise Handler
   const handleGlobalOrganize = () => {
@@ -45,6 +47,20 @@ const GameComponent = ({ settings, setStep }) => {
     });
   };
 
+  const handleGlobalDimension = () => {
+    const newState = !isGloballyDimensioned;
+    setIsGloballyDimensioned(newState);
+    setCardOverrides(prev => {
+      const next = { ...prev };
+      Object.values(CONSTANTS).forEach(group => {
+        Object.keys(group).forEach(symbol => {
+          next[symbol] = { ...next[symbol], isDimensioned: newState };
+        });
+      });
+      return next;
+    });
+  };
+
   // Global Truncate Handler
   const handleGlobalTruncate = () => {
     const newState = !isGloballyTruncated;
@@ -52,86 +68,66 @@ const GameComponent = ({ settings, setStep }) => {
 
     setCardOverrides(prev => {
       const next = { ...prev };
+      
       matchResults.forEach(m => {
         if (newState) {
-          const valStr = m.data.val || "";
-          const otherStr = (m.data.mult || "") + (m.data.exp || "");
-          const bank = [...(colorDigitMap[m.dominantColor] || [])];
-          const isOrganized = next[m.symbol]?.isOrganized;
+          // 1. Setup Data and Priority
+          const override = next[m.symbol] || {};
+          const isDim = !!override.isDimensioned;
+          const isOrg = !!override.isOrganized;
           
+          const valStr = m.data.val || "";
+          const multStr = m.data.mult || "";
+          const expStr = m.data.exp || "";
+          const dimStr = m.data.dim || "";
+          
+          const tempBank = [...(colorDigitMap[m.dominantColor] || [])];
           let lastMatchIdx = -1;
 
-          if (isOrganized) {
-            // 1. Replicate right-to-left sacrifice logic to find true visual highlights
-            const valMatches = [];
-            const tempBank = [...bank];
-            
-            valStr.split('').forEach((char, i) => {
-              const bIdx = tempBank.indexOf(char);
-              if (/[0-9]/.test(char) && bIdx !== -1) {
-                valMatches.push({ char, i });
-                tempBank.splice(bIdx, 1);
-              }
-            });
+          // 2. Helper to simulate the bank consumption
+          const processSegment = (str, segmentType) => {
+            const isVal = segmentType === 'val';
+            const isDimSegment = segmentType === 'dim';
+            // Use the same regex as the UI for dimensions
+            const regex = isDimSegment ? /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/ : /[0-9]/;
 
-            const gaps = [];
-            otherStr.split('').forEach(char => {
-              if (/[0-9]/.test(char)) {
-                const bIdx = tempBank.indexOf(char);
-                if (bIdx !== -1) tempBank.splice(bIdx, 1);
-                else gaps.push(char);
-              }
-            });
-
-            const sacMap = new Set();
-            const reserved = [];
-            gaps.forEach(gapChar => {
-              for (let i = valMatches.length - 1; i >= 0; i--) {
-                if (valMatches[i].char === gapChar) {
-                  sacMap.add(valMatches[i].i);
-                  reserved.push(gapChar);
-                  valMatches.splice(i, 1);
-                  break;
-                }
-              }
-            });
-
-            // 2. Simulate the forward render loop to find the last *visually* highlighted index
-            const visualBank = [...bank];
-            valStr.split('').forEach((char, idx) => {
-              if (/[0-9]/.test(char)) {
-                const isSacrificed = sacMap.has(idx);
-                if (!isSacrificed) {
-                  const bIdx = visualBank.indexOf(char);
-                  if (bIdx !== -1) {
-                    const countInBank = visualBank.filter(c => c === char).length;
-                    const countReserved = reserved.filter(c => c === char).length;
-                    if (countInBank > countReserved) {
-                      lastMatchIdx = idx; // Found a guaranteed highlight
-                      visualBank.splice(bIdx, 1);
-                    } else if (countInBank > 0 && countReserved > 0) {
-                      reserved.splice(reserved.indexOf(char), 1);
-                    }
-                  }
-                }
-              }
-            });
-          } else {
-            // Standard greedy matching when not organized
-            const tempBank = [...bank];
-            valStr.split('').forEach((char, idx) => {
-              if (/[0-9]/.test(char)) {
+            str.split('').forEach((char, idx) => {
+              if (regex.test(char)) {
                 const bIdx = tempBank.indexOf(char);
                 if (bIdx !== -1) {
-                  lastMatchIdx = idx;
                   tempBank.splice(bIdx, 1);
+                  if (isVal) lastMatchIdx = idx; // Track the last visual highlight
                 }
               }
             });
+          };
+
+          // 3. Mirror the UI Priority exactly
+          if (isDim && isOrg) {
+            processSegment(dimStr, 'dim');
+            processSegment(expStr, 'exp');
+            processSegment(multStr, 'mult');
+            processSegment(valStr, 'val');
+          } else if (isDim) {
+            processSegment(dimStr, 'dim');
+            processSegment(valStr, 'val');
+            processSegment(multStr, 'mult');
+            processSegment(expStr, 'exp');
+          } else if (isOrg) {
+            processSegment(expStr, 'exp');
+            processSegment(multStr, 'mult');
+            processSegment(valStr, 'val');
+            // Dimension is not processed/accounted for
+          } else {
+            processSegment(valStr, 'val');
+            processSegment(multStr, 'mult');
+            processSegment(expStr, 'exp');
+            // Dimension is not processed/accounted for
           }
+
           next[m.symbol] = { ...next[m.symbol], truncateIndex: lastMatchIdx };
         } else {
-          // Remove truncation
+          // Remove truncation override
           const { truncateIndex, ...rest } = next[m.symbol] || {};
           next[m.symbol] = rest;
         }
@@ -210,95 +206,105 @@ const GameComponent = ({ settings, setStep }) => {
         .filter(token => token && token.stableId && !token.isSymbol && !selectionsArray.includes(token.stableId))
         .map(token => token.originalDigit || token.token);
 
-      // 2. Map Performance with Styled Digits
+      const generateMaskedUnit = (targetUnit, matchedDigits) => {
+        if (!targetUnit) return "";
+        
+        let result = "";
+        let digitIdx = 0;
+
+        // Iterate through every character of the unit
+        for (let char of targetUnit) {
+          // FIX: \d won't catch superscripts, use the specific character class
+          if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char)) {
+            if (matchedDigits[digitIdx] && matchedDigits[digitIdx] !== '_') {
+              result += char; 
+            } else {
+              result += "_";
+            }
+            digitIdx++;
+          } else {
+            // Keep symbols like 'kg', '·', '/', etc.
+            result += char;
+          }
+        }
+        return result;
+      };
+
+      // 2. Map Performance with Styled Digits & Dimensions
       const performance = matchResults.map(m => {
         const userBank = [...(colorDigitMap[m.dominantColor] || [])];
         const data = m.data;
         const override = cardOverrides[m.symbol] || {};
+        const isDim = !!override.isDimensioned;
+        const isOrg = !!override.isOrganized;
         
         let valStr = data.val || "";
         if (isGloballyTruncated && override.truncateIndex !== undefined && override.truncateIndex !== -1) {
           valStr = valStr.substring(0, override.truncateIndex + 1);
         }
 
-        let sacrificedIndices = new Set();
-        let reservedForOther = [];
-        if (isGloballyOrganized) {
-          const tempBank = [...userBank];
-          const otherStr = (data.mult || "") + (data.exp || "");
-          const valMatches = [];
-          valStr.split('').forEach((char, i) => {
-            const bIdx = tempBank.indexOf(char);
-            if (/[0-9]/.test(char) && bIdx !== -1) {
-              valMatches.push({ char, i });
-              tempBank.splice(bIdx, 1);
-            }
-          });
-          const gaps = [];
-          otherStr.split('').forEach(char => {
-            if (/[0-9]/.test(char)) {
-              const bIdx = tempBank.indexOf(char);
-              if (bIdx !== -1) tempBank.splice(bIdx, 1);
-              else gaps.push(char);
-            }
-          });
-          gaps.forEach(gapChar => {
-            for (let i = valMatches.length - 1; i >= 0; i--) {
-              if (valMatches[i].char === gapChar) {
-                sacrificedIndices.add(valMatches[i].i);
-                reservedForOther.push(gapChar);
-                valMatches.splice(i, 1);
-                break;
-              }
-            }
-          });
-        }
+        const tempBank = [...userBank];
+        const results = { val: "", mult: "", exp: "", dim: "" };
 
-        const getSegmentMatches = (str, segmentType) => {
+        // Helper to match bank digits and return an underscored string
+        const allocateAndFormat = (str, segmentType) => {
           if (!str) return "";
-          const isVal = segmentType === 'val';
-          const currentReserved = [...reservedForOther];
-          const currentBank = [...userBank];
-          let result = "";
-          str.split('').forEach((char, idx) => {
-            if (/[0-9]/.test(char)) {
-              const bIdx = currentBank.indexOf(char);
-              const isSacrificed = isVal && sacrificedIndices.has(idx);
-              if (bIdx !== -1 && !isSacrificed) {
-                const countInBank = currentBank.filter(c => c === char).length;
-                const countReserved = currentReserved.filter(c => c === char).length;
-                if (countInBank > countReserved) {
-                  result += char;
-                  currentBank.splice(bIdx, 1);
-                } else {
-                  if (countReserved > 0) currentReserved.splice(currentReserved.indexOf(char), 1);
-                  result += "_";
-                }
-              } else {
-                result += "_";
+          const isDimSegment = segmentType === 'dim';
+          const regex = isDimSegment ? /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/ : /[0-9]/;
+
+          return str.split('').map(char => {
+            if (regex.test(char)) {
+              const bIdx = tempBank.indexOf(char);
+              if (bIdx !== -1) {
+                tempBank.splice(bIdx, 1);
+                return char;
               }
-            } else {
-              result += char;
+              return "_";
             }
-          });
-          return result;
+            return char;
+          }).join('');
         };
 
-        const matchedVal = getSegmentMatches(valStr, 'val');
-        const matchedMult = getSegmentMatches(data.mult, 'mult');
-        const matchedExp = getSegmentMatches(data.exp, 'exp');
-        const countDigits = (str) => (str ? (str.match(/[0-9]/g) || []).length : 0);
+        // PRIORITY ALLOCATION (Must match UI order)
+        if (isDim && isOrg) {
+          results.dim = allocateAndFormat(data.dim, 'dim');
+          results.exp = allocateAndFormat(data.exp, 'exp');
+          results.mult = allocateAndFormat(data.mult, 'mult');
+          results.val = allocateAndFormat(valStr, 'val');
+        } else if (isDim) {
+          results.dim = allocateAndFormat(data.dim, 'dim');
+          results.val = allocateAndFormat(valStr, 'val');
+          results.mult = allocateAndFormat(data.mult, 'mult');
+          results.exp = allocateAndFormat(data.exp, 'exp');
+        } else if (isOrg) {
+          results.exp = allocateAndFormat(data.exp, 'exp');
+          results.mult = allocateAndFormat(data.mult, 'mult');
+          results.val = allocateAndFormat(valStr, 'val');
+        } else {
+          results.val = allocateAndFormat(valStr, 'val');
+          results.mult = allocateAndFormat(data.mult, 'mult');
+          results.exp = allocateAndFormat(data.exp, 'exp');
+        }
+
+        const countDigits = (str) => (str ? (str.match(/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/g) || []).length : 0);
         
+        // Calculate total required digits for this specific card
+        const requiredDigits = countDigits(valStr) + countDigits(data.mult) + countDigits(data.exp) + (isDim ? countDigits(data.dim) : 0);
         const isPerfect = parseFloat(m.percent) >= 99.9;
-        const totalDigitsForThis = countDigits(valStr) + countDigits(data.mult) + countDigits(data.exp);
 
         return {
           symbol: m.symbol,
           percent: m.percent.toFixed(1),
-          matchedVal, matchedMult, matchedMag: data.mag, matchedExp, unit: data.unit,
-          perfectDigitCount: isPerfect ? totalDigitsForThis : 0,
+          matchedVal: results.val,
+          matchedMult: results.mult,
+          matchedExp: results.exp,
+          matchedDim: results.dim,
+          matchedUnit: isDim ? generateMaskedUnit(data.unit, results.dim) : null,
+          matchedMag: data.mag,
+          unit: data.unit,
+          perfectDigitCount: isPerfect ? requiredDigits : 0,
           isPerfect,
-          styledDigits: isPerfect ? totalDigitsForThis.toString().split('').map(d => ({ char: d, color: null })) : []
+          styledDigits: isPerfect ? requiredDigits.toString().split('').map(d => ({ char: d, color: null })) : []
         };
       });
 
@@ -432,6 +438,7 @@ const GameComponent = ({ settings, setStep }) => {
         language: settings.language,
         grids: settings.gridTypes,
         results: performance,
+        isDimensioned: isGloballyDimensioned,
         badges: badgeList,
         sigmaStyledStats: sigmaStyledStats,
         unusedDigits: remainingDigits,
@@ -586,14 +593,20 @@ const GameComponent = ({ settings, setStep }) => {
         const override = cardOverrides[symbol] || {};
         const data = { ...rawData };
 
-        // TRUNCATION LOGIC: Slice valChars if truncateIndex is active
         let valChars = data.val.split('');
         if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
           valChars = valChars.slice(0, override.truncateIndex + 1);
         }
 
+        // UPDATED: Only collect dimension digits if the mode is active
+        const dimDigits = override.isDimensioned 
+          ? (data.dim || "").split('').filter(char => /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char))
+          : [];
+
         const otherDigits = ((data.mult || "") + (data.exp || "")).split('').filter(char => /[0-9]/.test(char));
-        const allRequiredDigits = [...valChars.filter(c => /[0-9]/.test(c)), ...otherDigits];
+        
+        // Total required pool now dynamically includes/excludes dimensions
+        const allRequiredDigits = [...valChars.filter(c => /[0-9]/.test(c)), ...otherDigits, ...dimDigits];
 
         let maxPercent = 0;
         let bestColor = null;
@@ -681,6 +694,20 @@ const GameComponent = ({ settings, setStep }) => {
 
         <div className="sticky-right-panel" style={{ backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})` }}>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+            {/* Organize Button */}
+            <button
+              onClick={handleGlobalOrganize}
+              className="reset-btn"
+              style={{
+                margin: 0, flex: 1,
+                backgroundColor: isGloballyOrganized ? 'rgba(245, 158, 11, 0.15)' : undefined,
+                color: isGloballyOrganized ? '#fbbf24' : undefined,
+                borderColor: isGloballyOrganized ? '#f59e0b' : undefined
+              }}
+            >
+              {isGloballyOrganized ? 'Organized' : 'Organize'}
+            </button>
+
             {/* Truncate Button */}
             <button
               onClick={handleGlobalTruncate}
@@ -695,18 +722,18 @@ const GameComponent = ({ settings, setStep }) => {
               {isGloballyTruncated ? 'Truncated' : 'Truncate'}
             </button>
 
-            {/* Organize Button */}
+            {/* Organize by Dimension Button */}
             <button
-              onClick={handleGlobalOrganize}
+              onClick={handleGlobalDimension}
               className="reset-btn"
               style={{
                 margin: 0, flex: 1,
-                backgroundColor: isGloballyOrganized ? 'rgba(16, 185, 129, 0.25)' : undefined,
-                color: isGloballyOrganized ? '#10b981' : undefined,
-                borderColor: isGloballyOrganized ? '#10b981' : undefined
+                backgroundColor: isGloballyDimensioned ? 'rgba(16, 185, 129, 0.25)' : undefined,
+                color: isGloballyDimensioned ? '#10b981' : undefined,
+                borderColor: isGloballyDimensioned ? '#10b981' : undefined
               }}
             >
-              {isGloballyOrganized ? 'Organized' : 'Organize'}
+              {isGloballyDimensioned ? 'Dimensioned' : 'Dimension'}
             </button>
           </div>
 
@@ -738,7 +765,9 @@ const GameComponent = ({ settings, setStep }) => {
             
             const visualBank = [...(colorDigitMap[m.dominantColor] || [])];
             const tempBank = [...visualBank];
-            const matchedState = { val: [], mult: [], exp: [] };
+            // CLEAN PRIORITY ALLOCATION
+            const dimStr = m.data.dim || "";
+            const matchedState = { val: [], mult: [], exp: [], dim: [] };
 
             let displayValStr = m.data.val || "";
             if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
@@ -748,9 +777,10 @@ const GameComponent = ({ settings, setStep }) => {
             const expStr = m.data.exp || "";
 
             // Helper to allocate matches based on string segment
-            const allocateMatches = (str) => {
+            const allocateMatches = (str, isEnabled = true) => {
               return str.split('').map(char => {
-                if (/[0-9]/.test(char)) {
+                // Sync regex: standard digits + superscripts
+                if (isEnabled && /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char)) {
                   const bIdx = tempBank.indexOf(char);
                   if (bIdx !== -1) {
                     tempBank.splice(bIdx, 1);
@@ -762,16 +792,28 @@ const GameComponent = ({ settings, setStep }) => {
             };
 
             // CLEAN PRIORITY ALLOCATION
-            if (override.isOrganized) {
-              // Priority: 1. exp, 2. mult, 3. val (Remaining pool)
+            const isDim = !!override.isDimensioned; // Helper boolean
+
+            if (isDim && override.isOrganized) {
+              matchedState.dim = allocateMatches(dimStr, true);
               matchedState.exp = allocateMatches(expStr);
               matchedState.mult = allocateMatches(multStr);
               matchedState.val = allocateMatches(displayValStr);
+            } else if (isDim) {
+              matchedState.dim = allocateMatches(dimStr, true);
+              matchedState.val = allocateMatches(displayValStr);
+              matchedState.mult = allocateMatches(multStr);
+              matchedState.exp = allocateMatches(expStr);
+            } else if (override.isOrganized) {
+              matchedState.exp = allocateMatches(expStr);
+              matchedState.mult = allocateMatches(multStr);
+              matchedState.val = allocateMatches(displayValStr);
+              matchedState.dim = allocateMatches(dimStr, false); // Force false
             } else {
-              // Default Unorganized Priority: val, mult, exp
               matchedState.val = allocateMatches(displayValStr);
               matchedState.mult = allocateMatches(multStr);
               matchedState.exp = allocateMatches(expStr);
+              matchedState.dim = allocateMatches(dimStr, false); // Force false
             }
 
             let hasValMatches = matchedState.val.includes(true);
@@ -792,6 +834,23 @@ const GameComponent = ({ settings, setStep }) => {
                   color = '#ffffff'; // Non-digits (., -) are always rendered white
                 }
                 return <span key={idx} style={{ color, transition: 'all 0.2s' }}>{char}</span>;
+              });
+            };
+
+            const renderUnit = (unitStr) => {
+              if (!unitStr) return null;
+              let dimIdx = 0;
+              const digitRegex = /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/;
+
+              return unitStr.split('').map((char, idx) => {
+                if (digitRegex.test(char)) {
+                  // If isDimensioned was false, matchedState.dim[dimIdx] will be undefined/false
+                  const isMatched = matchedState.dim[dimIdx];
+                  dimIdx++;
+                  const color = isMatched ? '#ffffff' : 'rgba(255,255,255,0.15)';
+                  return <span key={`unit-${idx}`} style={{ color, transition: 'all 0.2s' }}>{char}</span>;
+                }
+                return <span key={`unit-${idx}`} style={{ color: 'rgba(255,255,255,0.4)' }}>{char}</span>;
               });
             };
 
@@ -828,7 +887,7 @@ const GameComponent = ({ settings, setStep }) => {
                       </span>
                     </>
                   )}
-                  <span className="unit-text">{m.data.unit}</span>
+                  <span className="unit-text">{renderUnit(m.data.unit)}</span>
                 </div>
               </div>
             );

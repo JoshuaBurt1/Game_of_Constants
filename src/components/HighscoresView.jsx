@@ -119,23 +119,23 @@ function HighscoresView({ onBack }) {
 
                       <td className="hs-cell" style={cellStyle}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                          {s.isTruncated && <span className="hs-modifier truncated">Truncated</span>}
                           {s.isOrganized && <span className="hs-modifier organized">Organized</span>}
-                          {(!s.isTruncated && !s.isRounded && !s.isOrganized) && <span className="hs-badge" style={{ opacity: 0.3 }}>None</span>}
+                          {s.isTruncated && <span className="hs-modifier truncated">Truncated</span>}
+                          {s.isDimensioned && <span className="hs-modifier dimensioned">Dimensioned</span>}
+                          {(!s.isTruncated && !s.isOrganized && !s.isDimensioned) && <span className="hs-badge" style={{ opacity: 0.3 }}>None</span>}
                         </div>
                       </td>
-
+                      
                       <td className="hs-cell" style={cellStyle}>
                         <div style={{ 
                           display: 'flex', 
                           flexDirection: 'column', 
                           gap: '4px', 
-                          alignItems: 'flex-start', // Changed from center to left-align
-                          paddingLeft: '12px',      // Adds a nice gutter for the left alignment
+                          alignItems: 'flex-start',
+                          paddingLeft: '12px',      
                           fontSize: '0.75rem' 
                         }}>
                           {(() => {
-                            // 1. Identify if a completed equation exists for this score entry
                             const hasEquation = s.associatedEquation && s.associatedEquation !== "";
                             const isEquationComplete = hasEquation && 
                               s.equationMembers?.length > 0 && 
@@ -144,7 +144,6 @@ function HighscoresView({ onBack }) {
                               );
 
                             return s.results?.slice(0, 6).map((res, idx) => {
-                              // 2. Logic for highlighting and bolding
                               const isMember = s.equationMembers?.includes(res.symbol);
                               const shouldHighlight = isMember && isEquationComplete;
 
@@ -160,7 +159,6 @@ function HighscoresView({ onBack }) {
                                   <strong>[{res.percent}%]</strong>
                                   <span> {res.symbol} =</span>
                                   
-                                  {/* Structured scientific notation reflecting in-game Org/Truncate state */}
                                   <span style={{ opacity: 0.7, marginLeft: '6px', fontSize: '0.7rem', fontFamily: 'monospace' }}>
                                     {res.matchedVal}
                                     {res.matchedMult && ` × ${res.matchedMult}`}
@@ -168,6 +166,17 @@ function HighscoresView({ onBack }) {
                                       <sup style={{ fontSize: '0.5rem' }}>
                                         {res.matchedMag}{res.matchedExp}
                                       </sup>
+                                    )}
+                                    
+                                    {/* UPDATED: Highlight dimension only if isMember */}
+                                    {s.isDimensioned && (res.matchedUnit || res.matchedDim) && (
+                                      <span style={{ 
+                                        marginLeft: '4px', 
+                                        color: isMember ? '#10b981' : 'inherit', 
+                                        fontWeight: isMember ? 'bold' : 'normal' 
+                                      }}>
+                                        {res.matchedUnit} 
+                                      </span>
                                     )}
                                   </span>
                                 </div>

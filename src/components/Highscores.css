@@ -150,9 +150,9 @@
   font-weight: bold;
 }
 
+.organized { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: #f59e0b; }
 .truncated { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6; }
-.rounded { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border-color: #8b5cf6; }
-.organized { background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: #10b981; }
+.dimensioned { background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: #10b981; }
 
 /* Buttons */
 .hs-grid-btn {
