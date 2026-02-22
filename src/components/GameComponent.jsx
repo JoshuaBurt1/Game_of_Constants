@@ -149,13 +149,17 @@ const GameComponent = ({ settings, setStep }) => {
       let aggregateUnchanged = 0;
 
       settings.gridTypes.forEach(type => {
+        // END STATE: What is on the board now
         const tokensForThisGrid = gridTokens[type] || [];
-        const digitTokens = tokensForThisGrid.filter(t => t && !t.isSymbol);
+        const digitTokens = tokensForThisGrid.filter(t => t && !t.isSymbol && /[0-9]/.test(String(t.token)));
 
+        // START STATE: Reconstruct exactly what the grid looked like at second zero
         const originalPool = [];
         const initialTokens = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
+        
         initialTokens.forEach(item => {
           if (item && !item.isSymbol) {
+            // Ensure we extract the digit consistently as a string
             const val = item.token !== undefined ? String(item.token) : String(item);
             if (/[0-9]/.test(val)) originalPool.push(val);
           }
@@ -164,19 +168,27 @@ const GameComponent = ({ settings, setStep }) => {
         const gridStartingTotal = originalPool.length;
         const gridEndingTotal = digitTokens.length;
 
-        let gridChanged = 0;
         let gridUnchanged = 0;
+        let gridChanged = 0;
 
+        // COMPARISON LOGIC
+        // We iterate through what's on the board and see if it existed in the start pool
         digitTokens.forEach(token => {
           const val = String(token.token);
           const foundIdx = originalPool.indexOf(val);
+          
           if (foundIdx !== -1) {
+            // Digit existed at start and still exists: Unchanged
             gridUnchanged++;
-            originalPool.splice(foundIdx, 1);
+            originalPool.splice(foundIdx, 1); // Remove from pool so we don't double-count duplicates
           } else {
+            // Digit is on the board but wasn't in the original pool: It was mutated/changed
             gridChanged++;
           }
         });
+
+        // The "Start Changed" count is simply: How many of the original digits are no longer there?
+        const gridStartChanged = gridStartingTotal - gridUnchanged;
 
         const unusedInThisGrid = digitTokens
           .filter(token => token && token.stableId && !selectionsArray.includes(token.stableId))
@@ -185,12 +197,16 @@ const GameComponent = ({ settings, setStep }) => {
         gridMetrics[type] = {
           startingTotal: gridStartingTotal,
           endingTotal: gridEndingTotal,
-          gridStartChanged: gridStartingTotal - gridUnchanged,
+          gridStartChanged: gridStartChanged,
           changed: gridChanged,
           unchanged: gridUnchanged,
-          percentChangedStart: gridStartingTotal > 0 ? Number((( (gridStartingTotal - gridUnchanged) / gridStartingTotal) * 100).toFixed(1)) : 0,
+          // Percent of original digits that were modified
+          percentChangedStart: gridStartingTotal > 0 ? Number(((gridStartChanged / gridStartingTotal) * 100).toFixed(1)) : 0,
+          // Percent of current board that is "new/modified"
           percentChanged: gridEndingTotal > 0 ? Number(((gridChanged / gridEndingTotal) * 100).toFixed(1)) : 0,
+          // Percent of original digits that survived
           percentUnchangedStart: gridStartingTotal > 0 ? Number(((gridUnchanged / gridStartingTotal) * 100).toFixed(1)) : 0,
+          // Percent of current board that is "original"
           percentUnchanged: gridEndingTotal > 0 ? Number(((gridUnchanged / gridEndingTotal) * 100).toFixed(1)) : 0,
           unusedDigits: unusedInThisGrid 
         };
@@ -206,31 +222,23 @@ const GameComponent = ({ settings, setStep }) => {
         .filter(token => token && token.stableId && !token.isSymbol && !selectionsArray.includes(token.stableId))
         .map(token => token.originalDigit || token.token);
 
+      // --- 2. Performance Mapping & Masking ---
       const generateMaskedUnit = (targetUnit, matchedDigits) => {
         if (!targetUnit) return "";
-        
         let result = "";
         let digitIdx = 0;
-
-        // Iterate through every character of the unit
         for (let char of targetUnit) {
-          // FIX: \d won't catch superscripts, use the specific character class
           if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char)) {
-            if (matchedDigits[digitIdx] && matchedDigits[digitIdx] !== '_') {
-              result += char; 
-            } else {
-              result += "_";
-            }
+            if (matchedDigits[digitIdx] && matchedDigits[digitIdx] !== '_') result += char; 
+            else result += "_";
             digitIdx++;
           } else {
-            // Keep symbols like 'kg', '·', '/', etc.
             result += char;
           }
         }
         return result;
       };
 
-      // 2. Map Performance with Styled Digits & Dimensions
       const performance = matchResults.map(m => {
         const userBank = [...(colorDigitMap[m.dominantColor] || [])];
         const data = m.data;
@@ -246,12 +254,9 @@ const GameComponent = ({ settings, setStep }) => {
         const tempBank = [...userBank];
         const results = { val: "", mult: "", exp: "", dim: "" };
 
-        // Helper to match bank digits and return an underscored string
         const allocateAndFormat = (str, segmentType) => {
           if (!str) return "";
-          const isDimSegment = segmentType === 'dim';
-          const regex = isDimSegment ? /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/ : /[0-9]/;
-
+          const regex = (segmentType === 'dim') ? /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/ : /[0-9]/;
           return str.split('').map(char => {
             if (regex.test(char)) {
               const bIdx = tempBank.indexOf(char);
@@ -265,7 +270,7 @@ const GameComponent = ({ settings, setStep }) => {
           }).join('');
         };
 
-        // PRIORITY ALLOCATION (Must match UI order)
+        // Priority logic for dimensions/organization
         if (isDim && isOrg) {
           results.dim = allocateAndFormat(data.dim, 'dim');
           results.exp = allocateAndFormat(data.exp, 'exp');
@@ -287,8 +292,6 @@ const GameComponent = ({ settings, setStep }) => {
         }
 
         const countDigits = (str) => (str ? (str.match(/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/g) || []).length : 0);
-        
-        // Calculate total required digits for this specific card
         const requiredDigits = countDigits(valStr) + countDigits(data.mult) + countDigits(data.exp) + (isDim ? countDigits(data.dim) : 0);
         const isPerfect = parseFloat(m.percent) >= 99.9;
 
@@ -308,7 +311,7 @@ const GameComponent = ({ settings, setStep }) => {
         };
       });
 
-      // 3. --- FIND COMPLETED SET (The Missing Block) ---
+      // --- 3. Equation Identification ---
       let eqId = "None";
       let eqString = "";
       let originalSet = null;
@@ -330,73 +333,73 @@ const GameComponent = ({ settings, setStep }) => {
         }
       }
 
-      // 4. --- BADGE IDENTIFICATION & STYLING ---
+      // --- 4. Badge Identification & Styled Data ---
       const badgeList = [];
       const badgeTargets = {
-        "green_camel": { digits: ["2", "1", "9"], color: "#10b981" },
-        "blue_camel": { digits: ["7", "3"], color: "#3b82f6" },
-        "sigma": { digits: ["3", "4"], color: "#FF69B4" } // version 2: digits: ["3", "4", "1"]
+        //1-Sigma (Two-Tail):   68.268949213708780 %
+        //1-Sigma (Single-Tail): 34.134474606854390 %
+        "sigma": { versions: [["3", "4", "1", "3", "4", "4", "7", "4", "6", "0", "6", "8"], ["3", "4", "1", "3", "4", "4", "7", "4", "6", "0", "6"], ["3", "4", "1", "3", "4", "4", "7", "4", "6", "0"], ["3", "4", "1", "3", "4", "4", "7", "4", "6"], ["3", "4", "1", "3", "4", "4", "7", "4"], ["3", "4", "1", "3", "4", "4", "7"], ["3", "4", "1", "3", "4", "4"], ["3", "4", "1", "3", "4"], ["3", "4", "1", "3"], ["3", "4", "1"], ["3", "4"]], color: "#FF69B4" },
+        //"sigma2": { versions: [["6", "8", "2", "6"], ["6", "8", "2"], ["6", "8"]], color: "#702963" },
+        "gold": { versions: [["1", "9", "6", "9"], ["1", "9", "6"], ["7", "9"]], color: "gold" },
+        "gold2": { versions: [["7", "9"]], color: "gold" },
+        "gold3": { versions: [["1", "1", "6"]], color: "gold" },
+        "blue_camel": { versions: [["7", "3"]], color: "#3b82f6" },
+        "green_camel": { versions: [["2", "1", "9"]], color: "#10b981" }
       };
 
-      const allDigitsPool = performance
-        .filter(p => p.isPerfect)
-        .map(p => p.perfectDigitCount.toString())
-        .join('');
+      const percChangedStart = aggregateStartingTotal > 0 ? Number(((aggregateStartChanged / aggregateStartingTotal) * 100).toFixed(1)) : 0;
+      const percChanged = aggregateEndingTotal > 0 ? Number(((aggregateChanged / aggregateEndingTotal) * 100).toFixed(1)) : 0;
+      const percUnchangedStart = aggregateStartingTotal > 0 ? Number(((aggregateUnchanged / aggregateStartingTotal) * 100).toFixed(1)) : 0;
+      const percUnchanged = aggregateEndingTotal > 0 ? Number(((aggregateUnchanged / aggregateEndingTotal) * 100).toFixed(1)) : 0;
 
-      const checkAndStyleBadge = (badgeKey) => {
-        const { digits, color } = badgeTargets[badgeKey];
-        const pool = allDigitsPool.split('');
-        let tempPool = [...pool];
-        
-        const isMatch = digits.every(d => {
-          const idx = tempPool.indexOf(d);
-          if (idx !== -1) {
-            tempPool.splice(idx, 1);
-            return true;
-          }
-          return false;
-        });
+      const createStyled = (val) => String(val).split('').map(c => ({ char: c, color: null }));
 
-        if (isMatch) {
-          badgeList.push(badgeKey);
-          digits.forEach(targetChar => {
-            for (let p of performance) {
-              if (!p.isPerfect) continue;
-              const digitObj = p.styledDigits.find(sd => sd.char === targetChar && !sd.color);
-              if (digitObj) {
-                digitObj.color = color;
-                break; 
-              }
-            }
-          });
+      const styledData = {
+        stats: {
+          startingTotal: createStyled(aggregateStartingTotal),
+          endingTotal: createStyled(aggregateEndingTotal),
+          startChanged: createStyled(aggregateStartChanged),
+          changed: createStyled(aggregateChanged),
+          unchanged: createStyled(aggregateUnchanged)
+        },
+        percentages: {
+          percChangedStart: createStyled(percChangedStart),
+          percChanged: createStyled(percChanged),
+          percUnchangedStart: createStyled(percUnchangedStart),
+          percUnchanged: createStyled(percUnchanged)
         }
       };
 
-      checkAndStyleBadge("green_camel");
-      checkAndStyleBadge("blue_camel");
-
-      // --- NEW: SIGMA BADGE LOGIC (STAT PERMUTATIONS) ---
-      const aggregatePercentUnchangedStart = aggregateStartingTotal > 0 
-        ? Number(((aggregateUnchanged / aggregateStartingTotal) * 100).toFixed(1)) 
-        : 0;
-
-      const sigmaStyledStats = {
-        startingTotal: String(aggregateStartingTotal).split('').map(c => ({ char: c, color: null })),
-        aggregateStartChanged: String(aggregateStartChanged).split('').map(c => ({ char: c, color: null })),
-        changedDigits: String(aggregateChanged).split('').map(c => ({ char: c, color: null })),
-        aggregatePercentUnchangedStart: String(aggregatePercentUnchangedStart).split('').map(c => ({ char: c, color: null }))
-      };
-
-      const sigmaPool = [
-        ...String(aggregateStartingTotal).split(''),
-        ...String(aggregateStartChanged).split(''),
-        ...String(aggregateChanged).split(''),
-        ...String(aggregatePercentUnchangedStart).split('')
+      const pools = [
+        {
+          name: "digits",
+          source: performance.filter(p => p.isPerfect).map(p => p.perfectDigitCount.toString()).join(''),
+          applyStyle: (targetChar, color) => {
+            for (let p of performance) {
+              if (p.isPerfect) {
+                const digitObj = p.styledDigits.find(sd => sd.char === targetChar && !sd.color);
+                if (digitObj) { digitObj.color = color; return true; }
+              }
+            }
+            return false;
+          }
+        },
+        {
+          name: "stats",
+          source: Object.values(styledData.stats).flatMap(arr => arr.map(a => a.char)).join(''),
+          applyStyle: (targetChar, color) => {
+            for (const key of Object.keys(styledData.stats)) {
+              const digitObj = styledData.stats[key].find(sd => sd.char === targetChar && !sd.color);
+              if (digitObj) { digitObj.color = color; return true; }
+            }
+            return false;
+          }
+        }
       ];
 
-      const checkSigmaBadge = (digits) => {
-        let tempPool = [...sigmaPool];
-        return digits.every(d => {
+      const hasPermutation = (sourceString, targetDigitsArray) => {
+        let tempPool = sourceString.split('');
+        return targetDigitsArray.every(d => {
           const idx = tempPool.indexOf(d);
           if (idx !== -1) {
             tempPool.splice(idx, 1);
@@ -406,31 +409,22 @@ const GameComponent = ({ settings, setStep }) => {
         });
       };
 
-      let sigmaTargetColor = "#FF69B4";
-      let sigmaTargetSet = null;
-
-      // Check 34.1 first, fallback to 34
-      if (checkSigmaBadge(["3", "4", "1"])) {
-        sigmaTargetSet = ["3", "4", "1"];
-      } else if (checkSigmaBadge(["3", "4"])) {
-        sigmaTargetSet = ["3", "4"];
-      }
-
-      if (sigmaTargetSet) {
-        badgeList.push("sigma");
-        sigmaTargetSet.forEach(targetChar => {
-          const keys = ['startingTotal', 'aggregateStartChanged', 'changedDigits', 'aggregatePercentUnchangedStart'];
-          for (const key of keys) {
-            const digitObj = sigmaStyledStats[key].find(sd => sd.char === targetChar && !sd.color);
-            if (digitObj) {
-              digitObj.color = sigmaTargetColor;
-              break; // Stop after coloring one instance per required digit
+      Object.entries(badgeTargets).forEach(([badgeKey, config]) => {
+        let badgeAwarded = false;
+        for (const pool of pools) {
+          if (badgeAwarded) break;
+          for (const version of config.versions) {
+            if (hasPermutation(pool.source, version)) {
+              badgeList.push(badgeKey);
+              version.forEach(targetChar => pool.applyStyle(targetChar, config.color));
+              badgeAwarded = true;
+              break;
             }
           }
-        });
-      }
+        }
+      });
 
-      // 5. Build and Submit Data
+      // 5. Final Submission
       const highscoreData = {
         topic: settings.topic || "General",
         word: settings.word,
@@ -440,17 +434,17 @@ const GameComponent = ({ settings, setStep }) => {
         results: performance,
         isDimensioned: isGloballyDimensioned,
         badges: badgeList,
-        sigmaStyledStats: sigmaStyledStats,
+        styledStatsData: styledData, 
         unusedDigits: remainingDigits,
         startingTotal: aggregateStartingTotal,
         totalDigitsDisplayed: aggregateEndingTotal,
         aggregateStartChanged: aggregateStartChanged,
         changedDigits: aggregateChanged, 
         unchangedDigits: aggregateUnchanged, 
-        aggregatePercentChangedStart: aggregateStartingTotal > 0 ? Number(((aggregateStartChanged / aggregateStartingTotal) * 100).toFixed(1)) : 0, 
-        percentageChanged: aggregateEndingTotal > 0 ? Number(((aggregateChanged / aggregateEndingTotal) * 100).toFixed(1)) : 0,
-        aggregatePercentUnchangedStart: aggregateStartingTotal > 0 ? Number(((aggregateUnchanged / aggregateStartingTotal) * 100).toFixed(1)) : 0, 
-        percentageUnchanged: aggregateEndingTotal > 0 ? Number(((aggregateUnchanged / aggregateEndingTotal) * 100).toFixed(1)) : 0,
+        aggregatePercentChangedStart: percChangedStart, 
+        percentageChanged: percChanged,
+        aggregatePercentUnchangedStart: percUnchangedStart, 
+        percentageUnchanged: percUnchanged,
         gridBreakdown: gridMetrics, 
         timestamp: serverTimestamp(),
         isTruncated: isGloballyTruncated,
@@ -573,7 +567,7 @@ const GameComponent = ({ settings, setStep }) => {
 
   const clearAllHighlights = () => setSelections({});
 
-  // 4. Scoring Logic (Updated for Truncation)
+  // 4. Scoring Logic (Truncation & Tie-Breaking)
   const { results: matchResults, colorDigitMap, symbolsToElevate, activeSetIds } = useMemo(() => {
     const colorMap = {};
     PALETTE.forEach(c => colorMap[c] = []);
@@ -598,37 +592,62 @@ const GameComponent = ({ settings, setStep }) => {
           valChars = valChars.slice(0, override.truncateIndex + 1);
         }
 
-        // UPDATED: Only collect dimension digits if the mode is active
         const dimDigits = override.isDimensioned 
           ? (data.dim || "").split('').filter(char => /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char))
           : [];
 
         const otherDigits = ((data.mult || "") + (data.exp || "")).split('').filter(char => /[0-9]/.test(char));
         
-        // Total required pool now dynamically includes/excludes dimensions
         const allRequiredDigits = [...valChars.filter(c => /[0-9]/.test(c)), ...otherDigits, ...dimDigits];
 
         let maxPercent = 0;
+        let maxConsecutiveOverall = 0; // NEW: Track highest streak globally
         let bestColor = null;
 
         PALETTE.forEach(color => {
           const userBank = [...(colorMap[color] || [])];
           let tempUserBank = [...userBank];
           let totalMatched = 0;
+          
+          let currentConsecutive = 0; // Track current running streak
+          let maxConsecutive = 0;     // Track best streak for this specific color
 
-          // Unified Match Logic: Total matches are independent of organization order
           allRequiredDigits.forEach(char => {
             const bIdx = tempUserBank.indexOf(char);
             if (bIdx !== -1) {
               totalMatched++;
               tempUserBank.splice(bIdx, 1);
+              
+              // NEW: Increase streak on successful match
+              currentConsecutive++;
+              if (currentConsecutive > maxConsecutive) {
+                maxConsecutive = currentConsecutive;
+              }
+            } else {
+              // NEW: Break streak on miss
+              currentConsecutive = 0;
             }
           });
 
           const totalRequired = allRequiredDigits.length;
           let percent = totalRequired > 0 ? (totalMatched / totalRequired) * 100 : 0;
 
-          if (percent > maxPercent) { maxPercent = percent; bestColor = color; }
+          // --- UPDATED TIE-BREAKER LOGIC ---
+          if (percent > maxPercent) { 
+            maxPercent = percent; 
+            maxConsecutiveOverall = maxConsecutive; // Lock in the new highest streak
+            bestColor = color; 
+          } else if (percent > 0 && percent === maxPercent) {
+            // Primary Tie-Breaker: Most consecutive highlighted digits
+            if (maxConsecutive > maxConsecutiveOverall) {
+              maxConsecutiveOverall = maxConsecutive;
+              bestColor = color;
+            } 
+            // Final Fallback: If even the streaks tie, use the active tool color
+            else if (maxConsecutive === maxConsecutiveOverall && color === activeColor) {
+              bestColor = color;
+            }
+          }
         });
 
         return { symbol, data, percent: maxPercent, dominantColor: bestColor || '#333', category };
@@ -653,7 +672,7 @@ const GameComponent = ({ settings, setStep }) => {
     });
 
     return { results: sorted, colorDigitMap: colorMap, symbolsToElevate: elevated, activeSetIds: activeIds };
-  }, [selections, gridTokens, cardOverrides]);
+  }, [selections, gridTokens, cardOverrides, activeColor]);
 
   const avgMatch = matchResults.reduce((acc, curr) => acc + curr.percent, 0) / matchResults.length;
   const brightness = 26 + (avgMatch * 0.4);
@@ -750,9 +769,16 @@ const GameComponent = ({ settings, setStep }) => {
             <div className="permutation-box">
               <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 'bold', marginBottom: '10px', letterSpacing: '1px' }}>CONVERT GRID:</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {boxedData.perms.map((p, idx) => (
+                {boxedData.perms
+                  .filter(p => p <= 9) 
+                  .map((p, idx) => (
                   <button key={idx} onClick={() => handlePermutationClick(p)} style={{ padding: '6px 12px', background: '#10b981', border: 'none', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', color: 'white', cursor: 'pointer' }}>{p}</button>
                 ))}
+                {boxedData.perms.every(p => p > 9) && (
+                  <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 'bold', marginBottom: '10px', letterSpacing: '1px' }}>
+                    Invalid selection.
+                  </div>  
+                )}
               </div>
             </div>
           )}

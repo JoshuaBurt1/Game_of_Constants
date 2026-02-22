@@ -6,7 +6,6 @@ import camelBlueImg from '../assets/blue_camel.png';
 import camelGreenImg from '../assets/green_camel.png';
 import sndImg from '../assets/snd.png';
 
-
 const LoadingBox = () => (
   <div className="loading-box">
     <div className="pulse-spinner" />
@@ -14,7 +13,8 @@ const LoadingBox = () => (
   </div>
 );
 
-const renderSigmaStat = (val, styledArr) => {
+// Renamed for broader context, handles fallbacks gracefully
+const renderStyledStat = (val, styledArr) => {
   if (styledArr && styledArr.length > 0) {
     return styledArr.map((obj, i) => (
       <span key={i} style={{ color: obj.color || 'inherit', fontWeight: obj.color ? 'bold' : 'normal' }}>
@@ -168,7 +168,6 @@ function HighscoresView({ onBack }) {
                                       </sup>
                                     )}
                                     
-                                    {/* UPDATED: Highlight dimension only if isMember */}
                                     {s.isDimensioned && (res.matchedUnit || res.matchedDim) && (
                                       <span style={{ 
                                         marginLeft: '4px', 
@@ -228,7 +227,7 @@ function HighscoresView({ onBack }) {
                         </div>
                       </td>
 
-                      {/* Digits */}
+                      {/* Updated Digits Section */}
                       <td className="hs-cell" style={cellStyle}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left', minWidth: '160px' }}>
                           <div style={{ paddingBottom: '6px', borderBottom: (s.gridBreakdown && isExpanded) ? '1px solid #333' : 'none' }}>
@@ -242,15 +241,13 @@ function HighscoresView({ onBack }) {
                               )}
                             </div>
 
-                            {/* 1. Total Matched Digits (Sum of all 100% matches) */}
-                           <div className="hs-stat-text">
+                            <div className="hs-stat-text">
                               Digits: <span className="hs-stat-val">
                                 {s.results
                                   ?.filter(res => res.isPerfect)
                                   .map((res, i, arr) => (
                                     <span key={i}>
                                       {res.symbol}: 
-                                      {/* 1. If styledDigits exists, map through it */}
                                       {res.styledDigits ? (
                                         res.styledDigits.map((digitObj, dIdx) => (
                                           <span 
@@ -264,7 +261,6 @@ function HighscoresView({ onBack }) {
                                           </span>
                                         ))
                                       ) : (
-                                        /* 2. Fallback for legacy data: just show the number plain */
                                         <span>{res.perfectDigitCount}</span>
                                       )}
                                       {i < arr.length - 1 ? ', ' : ''}
@@ -272,22 +268,23 @@ function HighscoresView({ onBack }) {
                                   )) || ""}
                               </span>
                             </div>
+                            
                             <div className="hs-stat-text">
                               Start/End: <span className="hs-stat-val">
-                                {renderSigmaStat(s.startingTotal, s.sigmaStyledStats?.startingTotal)} / {s.totalDigitsDisplayed}
+                                {renderStyledStat(s.startingTotal, s.styledStatsData?.stats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.stats?.endingTotal)}
                               </span>
                             </div>
 
                             <div className="hs-stat-text">
                               Changed: <span className="hs-stat-val">
-                                {renderSigmaStat(s.aggregateStartChanged, s.sigmaStyledStats?.aggregateStartChanged)} / {renderSigmaStat(s.changedDigits, s.sigmaStyledStats?.changedDigits)}
-                              </span> ({s.aggregatePercentChangedStart}) / ({s.percentageChanged}%)
+                                {renderStyledStat(s.aggregateStartChanged, s.styledStatsData?.stats?.startChanged)} / {renderStyledStat(s.changedDigits, s.styledStatsData?.stats?.changed)}
+                              </span> ({renderStyledStat(s.aggregatePercentChangedStart, s.styledStatsData?.percentages?.percChangedStart)}) / ({renderStyledStat(s.percentageChanged, s.styledStatsData?.percentages?.percChanged)}%)
                             </div>
 
                             <div className="hs-stat-text">
                               Unchanged: <span className="hs-stat-val">
-                                {s.unchangedDigits}
-                              </span> ({renderSigmaStat(s.aggregatePercentUnchangedStart, s.sigmaStyledStats?.aggregatePercentUnchangedStart)}) / ({s.percentageUnchanged}%)
+                                {renderStyledStat(s.unchangedDigits, s.styledStatsData?.stats?.unchanged)}
+                              </span> ({renderStyledStat(s.aggregatePercentUnchangedStart, s.styledStatsData?.percentages?.percUnchangedStart)}) / ({renderStyledStat(s.percentageUnchanged, s.styledStatsData?.percentages?.percUnchanged)}%)
                             </div>
                           </div>
 
@@ -310,17 +307,16 @@ function HighscoresView({ onBack }) {
 
                       {/* badges */}
                       <td className="hs-cell" style={cellStyle}>
-                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'center', alignItems: 'center' }}>
                           {s.badges?.map(badge => {
-                            if (badge === "green_camel") {
-                              return <img key={badge} src={camelGreenImg} style={{ width: '20px', height: '20px' }} />;
-                            }
-                            if (badge === "blue_camel") {
-                              return <img key={badge} src={camelBlueImg} style={{ width: '20px', height: '20px' }} />;
-                            }
-                            if (badge === "sigma"){
-                              return <img key={badge} src={sndImg} style={{ width: '20px', height: '20px' }} />;
-                            }
+                            if (badge === "green_camel") return <img key={badge} src={camelGreenImg} style={{ width: '20px', height: '20px' }} alt="Green Camel" />;
+                            if (badge === "blue_camel") return <img key={badge} src={camelBlueImg} style={{ width: '20px', height: '20px' }} alt="Blue Camel" />;
+                            if (badge === "sigma") return <img key={badge} src={sndImg} style={{ width: '20px', height: '20px' }} alt="Sigma" />;
+                            // Fallbacks for the new badges
+                            //if (badge === "sigma2") return <img key={badge} src={sndImg} style={{ width: '20px', height: '20px', filter: 'hue-rotate(90deg)' }} alt="Sigma 2" title="Sigma 2" />;
+                            if (badge === "gold") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
+                            if (badge === "gold2") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
+                            if (badge === "gold3") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
                             return null;
                           })}
                           {(!s.badges || s.badges.length === 0) && <span style={{ color: '#444' }}>—</span>}

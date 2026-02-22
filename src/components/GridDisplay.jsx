@@ -85,7 +85,6 @@ const GridDisplay = ({
             const highlightColor = (!isSymStyle && !shouldHide) ? (selections[gridType] || {})[item.stableId] : null;
             const boxKey = `${gridType}-${item.baseIdx}-${item.subIdx}`;
             const isBoxed = boxSelections[boxKey] !== undefined && boxSelections[boxKey] !== null;
-            const isOrthogonalMP = item.isMP && item.isOrthogonal;
 
             const classNames = [
               'grid-token',
