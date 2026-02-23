@@ -1,13 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import GameComponent from './components/GameComponent';
 import HighscoresView from './components/HighscoresView';
-import Instructions from './components/Instructions'; // Import new component
+import Instructions from './components/Instructions';
 import backgroundImage from './assets/background_home.png';
 import './App.css';
 
 export default function App() {
   const [step, setStep] = useState('TOPIC'); 
   const [settings, setSettings] = useState({ topic: '', word: '', language: '', gridTypes: [] });
+
+  // --- NEW: Loading Screen Cleanup ---
+  useEffect(() => {
+    const loader = document.getElementById('initial-loader');
+    if (loader) {
+      loader.style.opacity = '0'; // Trigger the CSS transition
+      const timer = setTimeout(() => {
+        loader.remove(); // Clean up the DOM
+      }, 500); // Matches the 0.5s transition in your CSS
+      return () => clearTimeout(timer);
+    }
+  }, []);
+  // -----------------------------------
 
   const toggleGridType = (type) => {
     setSettings(prev => ({
