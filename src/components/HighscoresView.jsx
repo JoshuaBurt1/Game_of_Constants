@@ -234,10 +234,12 @@ function HighscoresView({ onBack }) {
                       {/* Updated Digits Section */}
                       <td className="hs-cell" style={cellStyle}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left', minWidth: '160px' }}>
-                          <div style={{ paddingBottom: '6px', borderBottom: (s.gridBreakdown && isExpanded) ? '1px solid #333' : 'none' }}>
+                          <div style={{ paddingBottom: '6px', borderBottom: (s.grids?.length > 1 && s.gridBreakdown && isExpanded) ? '1px solid #333' : 'none' }}>
+                            
+                            {/* HEADER SECTION */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                               <span style={{ fontSize: '0.6rem', fontWeight: 'bold', color: '#888', textTransform: 'uppercase' }}>Digit Stats</span>
-                              {s.gridBreakdown && (
+                              {s.grids?.length > 1 && s.gridBreakdown && (
                                 <button className="hs-grid-btn" onClick={() => toggleGrid(s.id)}>
                                   {isExpanded ? 'Hide' : 'Grids'}
                                   <span className="hs-grid-arrow" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
@@ -245,107 +247,122 @@ function HighscoresView({ onBack }) {
                               )}
                             </div>
 
+                            {/* DIGITS ROW (Equation Matches) */}
                             <div className="hs-stat-text" style={{ marginBottom: '8px' }}>
                               Digits: <span className="hs-stat-val">
-                                {s.results
-                                  ?.filter(res => res.isPerfect)
-                                  .map((res, i, arr) => (
-                                    <span key={i}>
-                                      {res.symbol}: 
-                                      {res.styledDigits ? (
-                                        res.styledDigits.map((digitObj, dIdx) => (
-                                          <span 
-                                            key={dIdx} 
-                                            style={{ 
-                                              color: digitObj.color || 'inherit', 
-                                              fontWeight: digitObj.color ? 'bold' : 'normal' 
-                                            }}
-                                          >
-                                            {digitObj.char}
-                                          </span>
-                                        ))
-                                      ) : (
-                                        <span>{res.perfectDigitCount}</span>
-                                      )}
-                                      {i < arr.length - 1 ? ', ' : ''}
-                                    </span>
-                                  )) || ""}
+                                {s.results?.filter(res => res.isPerfect).map((res, i, arr) => (
+                                  <span key={i}>
+                                    {res.symbol}: {renderStyledStat(res.perfectDigitCount, res.styledDigits)}
+                                    {i < arr.length - 1 ? ', ' : ''}
+                                  </span>
+                                ))}
                               </span>
                             </div>
 
-                            {/* --- GLOBAL TOTALS (Current Image Logic) --- */}
+                            {/* GLOBAL TOTALS - Fixed paths to globalStats/globalPercentages */}
                             <div style={{ marginBottom: '10px' }}>
                               <div style={{ fontSize: '0.55rem', color: '#555', marginBottom: '2px', fontWeight: 'bold' }}>GLOBAL COMPARISON</div>
                               <div className="hs-stat-text">
                                 Start/End: <span className="hs-stat-val">
-                                  {renderStyledStat(s.startingTotal, s.styledStatsData?.stats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.stats?.endingTotal)}
+                                  {renderStyledStat(s.startingTotal, s.styledStatsData?.globalStats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.globalStats?.endingTotal)}
                                 </span>
                               </div>
                               <div className="hs-stat-text">
                                 Changed: <span className="hs-stat-val">
-                                  {renderStyledStat(s.aggregateStartChanged, s.styledStatsData?.stats?.startChanged)} / {renderStyledStat(s.changedDigits, s.styledStatsData?.stats?.changed)}
-                                </span> ({renderStyledStat(s.aggregatePercentChangedStart, s.styledStatsData?.percentages?.percChangedStart)}%) / ({renderStyledStat(s.percentageChanged, s.styledStatsData?.percentages?.percChanged)}%)
+                                  {renderStyledStat(s.aggregateStartChanged, s.styledStatsData?.globalStats?.startChanged)} / {renderStyledStat(s.changedDigits, s.styledStatsData?.globalStats?.changed)}
+                                </span> ({renderStyledStat(s.aggregatePercentChangedStart, s.styledStatsData?.globalPercentages?.percChangedStart)}%) / ({renderStyledStat(s.percentageChanged, s.styledStatsData?.globalPercentages?.percChanged)}%)
                               </div>
                               <div className="hs-stat-text">
                                 Unchanged: <span className="hs-stat-val">
-                                  {renderStyledStat(s.unchangedDigits, s.styledStatsData?.stats?.unchanged)}
-                                </span> ({renderStyledStat(s.aggregatePercentUnchangedStart, s.styledStatsData?.percentages?.percUnchangedStart)}%) / ({renderStyledStat(s.percentageUnchanged, s.styledStatsData?.percentages?.percUnchanged)}%)
+                                  {renderStyledStat(s.unchangedDigits, s.styledStatsData?.globalStats?.unchanged)}
+                                </span> ({renderStyledStat(s.aggregatePercentUnchangedStart, s.styledStatsData?.globalPercentages?.percUnchangedStart)}%) / ({renderStyledStat(s.percentageUnchanged, s.styledStatsData?.globalPercentages?.percUnchanged)}%)
                               </div>
                             </div>
 
-                            {/* --- ADDITIVE TOTALS (additive Image Logic) --- */}
-                            {s.additiveUnchangedDigits !== undefined && (
+                            {/* ADDITIVE TOTALS - Now using renderStyledStat */}
+                            {s.grids?.length > 1 && s.additiveUnchangedDigits !== undefined && (
                               <div style={{ borderTop: '1px dashed #333', paddingTop: '8px' }}>
                                 <div style={{ fontSize: '0.55rem', color: '#555', marginBottom: '2px', fontWeight: 'bold' }}>ADDITIVE COMPARISON</div>
                                 <div className="hs-stat-text">
                                   Start/End: <span className="hs-stat-val">
-                                    {renderStyledStat(s.startingTotal, s.styledStatsData?.stats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.stats?.endingTotal)}
+                                    {renderStyledStat(s.startingTotal, s.styledStatsData?.additiveStats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.additiveStats?.endingTotal)}
                                   </span>
                                 </div>
                                 <div className="hs-stat-text">
                                   Changed: <span className="hs-stat-val">
-                                    {s.additiveAggregateStartChanged} / {s.additiveChangedDigits}
-                                  </span> ({s.additiveAggregatePercentChangedStart}%) / ({s.additivePercentageChanged}%)
+                                    {renderStyledStat(s.additiveAggregateStartChanged, s.styledStatsData?.additiveStats?.startChanged)} / {renderStyledStat(s.additiveChangedDigits, s.styledStatsData?.additiveStats?.changed)}
+                                  </span> ({renderStyledStat(s.additiveAggregatePercentChangedStart, s.styledStatsData?.additivePercentages?.percChangedStart)}%) / ({renderStyledStat(s.additivePercentageChanged, s.styledStatsData?.additivePercentages?.percChanged)}%)
                                 </div>
                                 <div className="hs-stat-text">
                                   Unchanged: <span className="hs-stat-val">
-                                    {s.additiveUnchangedDigits}
-                                  </span> ({s.additiveAggregatePercentUnchangedStart}%) / ({s.additivePercentageUnchanged}%)
+                                    {renderStyledStat(s.additiveUnchangedDigits, s.styledStatsData?.additiveStats?.unchanged)}
+                                  </span> ({renderStyledStat(s.additiveAggregatePercentUnchangedStart, s.styledStatsData?.additivePercentages?.percUnchangedStart)}%) / ({renderStyledStat(s.additivePercentageUnchanged, s.styledStatsData?.additivePercentages?.percUnchanged)}%)
                                 </div>
                               </div>
                             )}
                           </div>
 
-                          {isExpanded && s.gridBreakdown && 
+                          {/* BREAKDOWN LIST - Now using renderStyledStat for individual grids */}
+                          {isExpanded && s.grids?.length > 1 && s.gridBreakdown && 
                             Object.entries(s.gridBreakdown)
                               .sort(([a], [b]) => b.localeCompare(a))
-                              .map(([gridName, metrics]) => (
-                                <div key={gridName} className="hs-grid-breakdown-box">
-                                  <div className="hs-grid-label">{gridName}</div>
-                                  <div className="hs-stat-text" style={{ fontSize: '0.65rem' }}>
-                                    <div>Start/End: <span className="hs-stat-val">{metrics.startingTotal} / {metrics.endingTotal}</span></div>
-                                    <div>Changed: <span className="hs-stat-val">{metrics.startChanged} / {metrics.changed}</span> ({metrics.percentChangedStart}%) / ({metrics.percentChanged}%)</div>
-                                    <div>Unchanged: <span className="hs-stat-val">{metrics.unchanged}</span> ({metrics.percentUnchangedStart}%) / ({metrics.percentUnchanged}%)</div>
+                              .map(([gridName, metrics]) => {
+                                const gridData = s.styledStatsData?.gridStats?.[gridName];
+                                return (
+                                  <div key={gridName} className="hs-grid-breakdown-box">
+                                    <div className="hs-grid-label">{gridName}</div>
+                                    <div className="hs-stat-text" style={{ fontSize: '0.65rem' }}>
+                                      <div>Start/End: <span className="hs-stat-val">
+                                        {renderStyledStat(metrics.startingTotal, gridData?.stats?.startingTotal)} / {renderStyledStat(metrics.endingTotal, gridData?.stats?.endingTotal)}
+                                      </span></div>
+                                      <div>Changed: <span className="hs-stat-val">
+                                        {renderStyledStat(metrics.startChanged, gridData?.stats?.startChanged)} / {renderStyledStat(metrics.changed, gridData?.stats?.changed)}
+                                      </span> ({renderStyledStat(metrics.percentChangedStart, gridData?.percentages?.percChangedStart)}%) / ({renderStyledStat(metrics.percentChanged, gridData?.percentages?.percChanged)}%)</div>
+                                      <div>Unchanged: <span className="hs-stat-val">
+                                        {renderStyledStat(metrics.unchanged, gridData?.stats?.unchanged)}
+                                      </span> ({renderStyledStat(metrics.percentUnchangedStart, gridData?.percentages?.percUnchangedStart)}%) / ({renderStyledStat(metrics.percentUnchanged, gridData?.percentages?.percUnchanged)}%)</div>
+                                    </div>
                                   </div>
-                                </div>
-                              ))
+                                );
+                              })
                           }
                         </div>
                       </td>
 
-                      {/* badges */}
+                      {/* Badges */}
                       <td className="hs-cell" style={cellStyle}>
-                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'center', alignItems: 'center' }}>
-                          {s.badges?.map(badge => {
-                            if (badge === "green_camel") return <img key={badge} src={camelGreenImg} style={{ width: '20px', height: '20px' }} alt="Green Camel" />;
-                            if (badge === "blue_camel") return <img key={badge} src={camelBlueImg} style={{ width: '20px', height: '20px' }} alt="Blue Camel" />;
-                            if (badge === "sigma") return <img key={badge} src={sndImg} style={{ width: '20px', height: '20px' }} alt="Sigma" />;
-                            if (badge === "gold") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
-                            if (badge === "gold2") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
-                            if (badge === "gold3") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
-                            return null;
-                          })}
-                          {(!s.badges || s.badges.length === 0) && <span style={{ color: '#444' }}>—</span>}
+                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {(() => {
+                            if (!s.badges || s.badges.length === 0) return <span style={{ color: '#444' }}>—</span>;
+                            
+                            // Group identical badges and normalize the gold trophies
+                            const badgeCounts = s.badges.reduce((acc, badge) => {
+                              const normalizedBadge = badge.startsWith("gold") ? "gold" : badge;
+                              acc[normalizedBadge] = (acc[normalizedBadge] || 0) + 1;
+                              return acc;
+                            }, {});
+
+                            return Object.entries(badgeCounts).map(([badge, count]) => {
+                              let icon = null;
+                              if (badge === "green_camel") icon = <img src={camelGreenImg} style={{ width: '20px', height: '20px' }} alt="Green Camel" />;
+                              else if (badge === "blue_camel") icon = <img src={camelBlueImg} style={{ width: '20px', height: '20px' }} alt="Blue Camel" />;
+                              else if (badge === "sigma") icon = <img src={sndImg} style={{ width: '20px', height: '20px' }} alt="Sigma" />;
+                              else if (badge === "gold") icon = <span style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
+                              
+                              if (!icon) return null;
+
+                              return (
+                                <div key={badge} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                                  {icon}
+                                  {count > 1 && (
+                                    <span style={{ color: '#10b981', fontSize: '0.7rem', fontWeight: 'bold', marginLeft: '2px' }}>
+                                      x{count}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
                       </td>
 

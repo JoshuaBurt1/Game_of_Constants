@@ -134,278 +134,348 @@ const GameComponent = ({ settings, setStep }) => {
       return next;
     });
   };
+  
   const handleSubmitScore = async () => {
-  try {
-    const selectionsArray = Object.values(selections).flatMap(gridMap => Object.keys(gridMap));
-    const allGridTokens = Object.values(gridTokens).flat();
+    try {
+      const selectionsArray = Object.values(selections).flatMap(gridMap => Object.keys(gridMap));
+      const allGridTokens = Object.values(gridTokens).flat();
 
-    const gridMetrics = {};
-    let aggregateStartingTotal = 0;
-    let aggregateEndingTotal = 0;
+      const gridMetrics = {};
+      let aggregateStartingTotal = 0;
+      let aggregateEndingTotal = 0;
 
-    // --- VERSION TRACKING ---
-    // Version A: Additive
-    let additiveUnchangedTotal = 0;
+      // --- VERSION TRACKING ---
+      // Version A: Additive
+      let additiveUnchangedTotal = 0;
 
-    // Version B: Global Pooled Bag
-    const allOriginalPool = [];
-    const allCurrentDigits = [];
+      // Version B: Global Pooled Bag
+      const allOriginalPool = [];
+      const allCurrentDigits = [];
 
-    settings.gridTypes.forEach(type => {
-      const tokensForThisGrid = gridTokens[type] || [];
-      const currentDigits = tokensForThisGrid
-        .filter(t => t && !t.isSymbol && /[0-9]/.test(String(t.token)))
-        .map(t => String(t.token));
+      // Check if we are in multi-grid mode
+      const isMultiGrid = settings.gridTypes.length > 1;
 
-      // Identify UNUSED digits for this specific grid
-      const gridUnusedDigits = tokensForThisGrid
+      settings.gridTypes.forEach(type => {
+        const tokensForThisGrid = gridTokens[type] || [];
+        const currentDigits = tokensForThisGrid
+          .filter(t => t && !t.isSymbol && /[0-9]/.test(String(t.token)))
+          .map(t => String(t.token));
+
+        const gridUnusedDigits = tokensForThisGrid
+          .filter(token => token && token.stableId && !token.isSymbol && !selectionsArray.includes(token.stableId))
+          .map(token => token.originalDigit || token.token);
+
+        const initialTokens = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
+        const originalPool = initialTokens
+          .filter(item => {
+            const val = item?.token !== undefined ? String(item.token) : String(item);
+            return !item?.isSymbol && /[0-9]/.test(val);
+          })
+          .map(item => item?.token !== undefined ? String(item.token) : String(item));
+
+        const gridStartingTotal = originalPool.length;
+        const gridEndingTotal = currentDigits.length;
+
+        let gridUnchanged = 0;
+        const tempOriginalPool = [...originalPool];
+
+        currentDigits.forEach(digit => {
+          const foundIdx = tempOriginalPool.indexOf(digit);
+          if (foundIdx !== -1) {
+            gridUnchanged++;
+            tempOriginalPool.splice(foundIdx, 1);
+          }
+        });
+
+        // Track Additive Total
+        if (isMultiGrid) {
+          additiveUnchangedTotal += gridUnchanged;
+          
+          const gridStartChanged = gridStartingTotal - gridUnchanged;
+          const gridEndChanged = gridEndingTotal - gridUnchanged;
+
+          gridMetrics[type] = {
+            startingTotal: gridStartingTotal,
+            endingTotal: gridEndingTotal,
+            unchanged: gridUnchanged,
+            startChanged: gridStartChanged,
+            changed: gridEndChanged,
+            unusedDigits: gridUnusedDigits,
+            percUnchangedStart: gridStartingTotal > 0 ? Number(((gridUnchanged / gridStartingTotal) * 100).toFixed(1)) : 0,
+            percChangedStart: gridStartingTotal > 0 ? Number(((gridStartChanged / gridStartingTotal) * 100).toFixed(1)) : 0,
+            percUnchanged: gridEndingTotal > 0 ? Number(((gridUnchanged / gridEndingTotal) * 100).toFixed(1)) : 0,
+            percChanged: gridEndingTotal > 0 ? Number(((gridEndChanged / gridEndingTotal) * 100).toFixed(1)) : 0
+          };
+        }
+
+        aggregateStartingTotal += gridStartingTotal;
+        aggregateEndingTotal += gridEndingTotal;
+        allOriginalPool.push(...originalPool);
+        allCurrentDigits.push(...currentDigits);
+      });
+
+      // --- AGGREGATE CALCULATIONS (VERSION B: GLOBAL/CURRENT) ---
+      let aggregateUnchanged = 0;
+      const tempAllOriginalPool = [...allOriginalPool];
+
+      allCurrentDigits.forEach(digit => {
+        const foundIdx = tempAllOriginalPool.indexOf(digit);
+        if (foundIdx !== -1) {
+          aggregateUnchanged++;
+          tempAllOriginalPool.splice(foundIdx, 1);
+        }
+      });
+
+      const aggregateStartChanged = aggregateStartingTotal - aggregateUnchanged;
+      const aggregateEndChanged = aggregateEndingTotal - aggregateUnchanged;
+
+      const percChangedStart = aggregateStartingTotal > 0 ? Number(((aggregateStartChanged / aggregateStartingTotal) * 100).toFixed(1)) : 0;
+      const percChanged = aggregateEndingTotal > 0 ? Number(((aggregateEndChanged / aggregateEndingTotal) * 100).toFixed(1)) : 0;
+      const percUnchangedStart = aggregateStartingTotal > 0 ? Number(((aggregateUnchanged / aggregateStartingTotal) * 100).toFixed(1)) : 0;
+      const percUnchanged = aggregateEndingTotal > 0 ? Number(((aggregateUnchanged / aggregateEndingTotal) * 100).toFixed(1)) : 0;
+
+      // --- AGGREGATE CALCULATIONS (VERSION A: ADDITIVE) ---
+      const additiveStartChanged = aggregateStartingTotal - additiveUnchangedTotal;
+      const additiveEndChanged = aggregateEndingTotal - additiveUnchangedTotal;
+
+      const additivePercChangedStart = aggregateStartingTotal > 0 ? Number(((additiveStartChanged / aggregateStartingTotal) * 100).toFixed(1)) : 0;
+      const additivePercChanged = aggregateEndingTotal > 0 ? Number(((additiveEndChanged / aggregateEndingTotal) * 100).toFixed(1)) : 0;
+      const additivePercUnchangedStart = aggregateStartingTotal > 0 ? Number(((additiveUnchangedTotal / aggregateStartingTotal) * 100).toFixed(1)) : 0;
+      const additivePercUnchanged = aggregateEndingTotal > 0 ? Number(((additiveUnchangedTotal / aggregateEndingTotal) * 100).toFixed(1)) : 0;
+
+      const remainingDigits = allGridTokens
         .filter(token => token && token.stableId && !token.isSymbol && !selectionsArray.includes(token.stableId))
         .map(token => token.originalDigit || token.token);
 
-      const initialTokens = type === "Square Shell" ? getSquareShellData(wordVal) : getHexagonData(wordVal);
-      const originalPool = initialTokens
-        .filter(item => {
-          const val = item?.token !== undefined ? String(item.token) : String(item);
-          return !item?.isSymbol && /[0-9]/.test(val);
-        })
-        .map(item => item?.token !== undefined ? String(item.token) : String(item));
-
-      const gridStartingTotal = originalPool.length;
-      const gridEndingTotal = currentDigits.length;
-
-      let gridUnchanged = 0;
-      const tempOriginalPool = [...originalPool];
-
-      currentDigits.forEach(digit => {
-        const foundIdx = tempOriginalPool.indexOf(digit);
-        if (foundIdx !== -1) {
-          gridUnchanged++;
-          tempOriginalPool.splice(foundIdx, 1);
-        }
-      });
-
-      // Track Additive Total
-      additiveUnchangedTotal += gridUnchanged;
-
-      const gridStartChanged = gridStartingTotal - gridUnchanged;
-      const gridEndChanged = gridEndingTotal - gridUnchanged;
-
-      gridMetrics[type] = {
-        startingTotal: gridStartingTotal,
-        endingTotal: gridEndingTotal,
-        unchanged: gridUnchanged,
-        startChanged: gridStartChanged,
-        changed: gridEndChanged,
-        unusedDigits: gridUnusedDigits,
-        percentUnchangedStart: gridStartingTotal > 0 ? Number(((gridUnchanged / gridStartingTotal) * 100).toFixed(1)) : 0,
-        percentChangedStart: gridStartingTotal > 0 ? Number(((gridStartChanged / gridStartingTotal) * 100).toFixed(1)) : 0,
-        percentUnchanged: gridEndingTotal > 0 ? Number(((gridUnchanged / gridEndingTotal) * 100).toFixed(1)) : 0,
-        percentChanged: gridEndingTotal > 0 ? Number(((gridEndChanged / gridEndingTotal) * 100).toFixed(1)) : 0
-      };
-
-      aggregateStartingTotal += gridStartingTotal;
-      aggregateEndingTotal += gridEndingTotal;
-
-      // Push to global arrays for Version B
-      allOriginalPool.push(...originalPool);
-      allCurrentDigits.push(...currentDigits);
-    });
-
-    // --- AGGREGATE CALCULATIONS (VERSION B: GLOBAL/CURRENT) ---
-    let aggregateUnchanged = 0;
-    const tempAllOriginalPool = [...allOriginalPool];
-
-    allCurrentDigits.forEach(digit => {
-      const foundIdx = tempAllOriginalPool.indexOf(digit);
-      if (foundIdx !== -1) {
-        aggregateUnchanged++;
-        tempAllOriginalPool.splice(foundIdx, 1);
-      }
-    });
-
-    const aggregateStartChanged = aggregateStartingTotal - aggregateUnchanged;
-    const aggregateEndChanged = aggregateEndingTotal - aggregateUnchanged;
-
-    const percChangedStart = aggregateStartingTotal > 0 ? Number(((aggregateStartChanged / aggregateStartingTotal) * 100).toFixed(1)) : 0;
-    const percChanged = aggregateEndingTotal > 0 ? Number(((aggregateEndChanged / aggregateEndingTotal) * 100).toFixed(1)) : 0;
-    const percUnchangedStart = aggregateStartingTotal > 0 ? Number(((aggregateUnchanged / aggregateStartingTotal) * 100).toFixed(1)) : 0;
-    const percUnchanged = aggregateEndingTotal > 0 ? Number(((aggregateUnchanged / aggregateEndingTotal) * 100).toFixed(1)) : 0;
-
-    // --- AGGREGATE CALCULATIONS (VERSION A: ADDITIVE) ---
-    const prevStartChanged = aggregateStartingTotal - additiveUnchangedTotal;
-    const prevEndChanged = aggregateEndingTotal - additiveUnchangedTotal;
-
-    const prevPercChangedStart = aggregateStartingTotal > 0 ? Number(((prevStartChanged / aggregateStartingTotal) * 100).toFixed(1)) : 0;
-    const prevPercChanged = aggregateEndingTotal > 0 ? Number(((prevEndChanged / aggregateEndingTotal) * 100).toFixed(1)) : 0;
-    const prevPercUnchangedStart = aggregateStartingTotal > 0 ? Number(((additiveUnchangedTotal / aggregateStartingTotal) * 100).toFixed(1)) : 0;
-    const prevPercUnchanged = aggregateEndingTotal > 0 ? Number(((additiveUnchangedTotal / aggregateEndingTotal) * 100).toFixed(1)) : 0;
-
-    const remainingDigits = allGridTokens
-      .filter(token => token && token.stableId && !token.isSymbol && !selectionsArray.includes(token.stableId))
-      .map(token => token.originalDigit || token.token);
-
-    // --- 2. Performance Mapping & Masking ---
-    const generateMaskedUnit = (targetUnit, matchedDigits) => {
-      if (!targetUnit) return "";
-      let result = "";
-      let digitIdx = 0;
-      for (let char of targetUnit) {
-        if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char)) {
-          if (matchedDigits[digitIdx] && matchedDigits[digitIdx] !== '_') result += char;
-          else result += "_";
-          digitIdx++;
-        } else {
-          result += char;
-        }
-      }
-      return result;
-    };
-
-    const performance = matchResults.map(m => {
-      const userBank = [...(colorDigitMap[m.dominantColor] || [])];
-      const data = m.data;
-      const override = cardOverrides[m.symbol] || {};
-      const isDim = !!override.isDimensioned;
-      const isOrg = !!override.isOrganized;
-
-      let valStr = data.val || "";
-      if (isGloballyTruncated && override.truncateIndex !== undefined && override.truncateIndex !== -1) {
-        valStr = valStr.substring(0, override.truncateIndex + 1);
-      }
-
-      const tempBank = [...userBank];
-      const results = { val: "", mult: "", exp: "", dim: "" };
-
-      const allocateAndFormat = (str, segmentType) => {
-        if (!str) return "";
-        const regex = (segmentType === 'dim') ? /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/ : /[0-9]/;
-        return str.split('').map(char => {
-          if (regex.test(char)) {
-            const bIdx = tempBank.indexOf(char);
-            if (bIdx !== -1) {
-              tempBank.splice(bIdx, 1);
-              return char;
-            }
-            return "_";
+      // --- 2. Performance Mapping & Masking ---
+      const generateMaskedUnit = (targetUnit, matchedDigits) => {
+        if (!targetUnit) return "";
+        let result = "";
+        let digitIdx = 0;
+        for (let char of targetUnit) {
+          if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char)) {
+            if (matchedDigits[digitIdx] && matchedDigits[digitIdx] !== '_') result += char;
+            else result += "_";
+            digitIdx++;
+          } else {
+            result += char;
           }
-          return char;
-        }).join('');
+        }
+        return result;
       };
 
-      if (isDim && isOrg) {
-        results.dim = allocateAndFormat(data.dim, 'dim');
-        results.exp = allocateAndFormat(data.exp, 'exp');
-        results.mult = allocateAndFormat(data.mult, 'mult');
-        results.val = allocateAndFormat(valStr, 'val');
-      } else if (isDim) {
-        results.dim = allocateAndFormat(data.dim, 'dim');
-        results.val = allocateAndFormat(valStr, 'val');
-        results.mult = allocateAndFormat(data.mult, 'mult');
-        results.exp = allocateAndFormat(data.exp, 'exp');
-      } else if (isOrg) {
-        results.exp = allocateAndFormat(data.exp, 'exp');
-        results.mult = allocateAndFormat(data.mult, 'mult');
-        results.val = allocateAndFormat(valStr, 'val');
-      } else {
-        results.val = allocateAndFormat(valStr, 'val');
-        results.mult = allocateAndFormat(data.mult, 'mult');
-        results.exp = allocateAndFormat(data.exp, 'exp');
+      const performance = matchResults.map(m => {
+        const userBank = [...(colorDigitMap[m.dominantColor] || [])];
+        const data = m.data;
+        const override = cardOverrides[m.symbol] || {};
+        const isDim = !!override.isDimensioned;
+        const isOrg = !!override.isOrganized;
+
+        let valStr = data.val || "";
+        if (isGloballyTruncated && override.truncateIndex !== undefined && override.truncateIndex !== -1) {
+          valStr = valStr.substring(0, override.truncateIndex + 1);
+        }
+
+        const tempBank = [...userBank];
+        const results = { val: "", mult: "", exp: "", dim: "" };
+
+        const allocateAndFormat = (str, segmentType) => {
+          if (!str) return "";
+          const regex = (segmentType === 'dim') ? /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/ : /[0-9]/;
+          return str.split('').map(char => {
+            if (regex.test(char)) {
+              const bIdx = tempBank.indexOf(char);
+              if (bIdx !== -1) {
+                tempBank.splice(bIdx, 1);
+                return char;
+              }
+              return "_";
+            }
+            return char;
+          }).join('');
+        };
+
+        if (isDim && isOrg) {
+          results.dim = allocateAndFormat(data.dim, 'dim');
+          results.exp = allocateAndFormat(data.exp, 'exp');
+          results.mult = allocateAndFormat(data.mult, 'mult');
+          results.val = allocateAndFormat(valStr, 'val');
+        } else if (isDim) {
+          results.dim = allocateAndFormat(data.dim, 'dim');
+          results.val = allocateAndFormat(valStr, 'val');
+          results.mult = allocateAndFormat(data.mult, 'mult');
+          results.exp = allocateAndFormat(data.exp, 'exp');
+        } else if (isOrg) {
+          results.exp = allocateAndFormat(data.exp, 'exp');
+          results.mult = allocateAndFormat(data.mult, 'mult');
+          results.val = allocateAndFormat(valStr, 'val');
+        } else {
+          results.val = allocateAndFormat(valStr, 'val');
+          results.mult = allocateAndFormat(data.mult, 'mult');
+          results.exp = allocateAndFormat(data.exp, 'exp');
+        }
+
+        const countDigits = (str) => (str ? (str.match(/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/g) || []).length : 0);
+        const requiredDigits = countDigits(valStr) + countDigits(data.mult) + countDigits(data.exp) + (isDim ? countDigits(data.dim) : 0);
+        const isPerfect = parseFloat(m.percent) >= 99.9;
+
+        return {
+          symbol: m.symbol,
+          percent: m.percent.toFixed(1),
+          matchedVal: results.val,
+          matchedMult: results.mult,
+          matchedExp: results.exp,
+          matchedDim: results.dim,
+          matchedUnit: isDim ? generateMaskedUnit(data.unit, results.dim) : null,
+          matchedMag: data.mag,
+          unit: data.unit,
+          perfectDigitCount: isPerfect ? requiredDigits : 0,
+          isPerfect,
+          extraneousDigits: tempBank,
+          styledDigits: isPerfect ? requiredDigits.toString().split('').map(d => ({ char: d, color: null })) : []
+        };
+      });
+
+      // --- 3. Equation Identification ---
+      let eqId = "None";
+      let eqString = "";
+      let originalSet = null;
+
+      if (activeSetIds.length > 0) {
+        const completedSets = EQUATION_SETS
+          .filter(set => activeSetIds.includes(set.id))
+          .filter(set => {
+            const perfectCount = set.members.filter(m =>
+              matchResults.find(r => r.symbol === m && r.percent >= 99.9)
+            ).length;
+            return perfectCount === set.members.length;
+          });
+
+        if (completedSets.length > 0) {
+          originalSet = completedSets[0];
+          eqId = originalSet.id;
+          eqString = originalSet.equation || originalSet.id.replace(/_/g, ' ');
+        }
       }
 
-      const countDigits = (str) => (str ? (str.match(/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/g) || []).length : 0);
-      const requiredDigits = countDigits(valStr) + countDigits(data.mult) + countDigits(data.exp) + (isDim ? countDigits(data.dim) : 0);
-      const isPerfect = parseFloat(m.percent) >= 99.9;
-
-      return {
-        symbol: m.symbol,
-        percent: m.percent.toFixed(1),
-        matchedVal: results.val,
-        matchedMult: results.mult,
-        matchedExp: results.exp,
-        matchedDim: results.dim,
-        matchedUnit: isDim ? generateMaskedUnit(data.unit, results.dim) : null,
-        matchedMag: data.mag,
-        unit: data.unit,
-        perfectDigitCount: isPerfect ? requiredDigits : 0,
-        isPerfect,
-        extraneousDigits: tempBank,
-        styledDigits: isPerfect ? requiredDigits.toString().split('').map(d => ({ char: d, color: null })) : []
-      };
-    });
-
-    // --- 3. Equation Identification ---
-    let eqId = "None";
-    let eqString = "";
-    let originalSet = null;
-
-    if (activeSetIds.length > 0) {
-      const completedSets = EQUATION_SETS
-        .filter(set => activeSetIds.includes(set.id))
-        .filter(set => {
-          const perfectCount = set.members.filter(m =>
-            matchResults.find(r => r.symbol === m && r.percent >= 99.9)
-          ).length;
-          return perfectCount === set.members.length;
+      // --- 3.5 Collect Extraneous Digits ---
+      let extraneousToKeep = [];
+      if (eqString !== "" && originalSet) {
+        performance.forEach(p => {
+          if (originalSet.members.includes(p.symbol)) {
+            extraneousToKeep.push(...p.extraneousDigits);
+          }
         });
-
-      if (completedSets.length > 0) {
-        originalSet = completedSets[0];
-        eqId = originalSet.id;
-        eqString = originalSet.equation || originalSet.id.replace(/_/g, ' ');
+      } else {
+        performance.forEach(p => {
+          if (p.isPerfect) {
+            extraneousToKeep.push(...p.extraneousDigits);
+          }
+        });
       }
-    }
 
-    // --- 3.5 Collect Extraneous Digits ---
-    let extraneousToKeep = [];
-    if (eqString !== "" && originalSet) {
-      performance.forEach(p => {
-        if (originalSet.members.includes(p.symbol)) {
-          extraneousToKeep.push(...p.extraneousDigits);
-        }
-      });
-    } else {
-      performance.forEach(p => {
-        if (p.isPerfect) {
-          extraneousToKeep.push(...p.extraneousDigits);
-        }
-      });
-    }
+      const finalUnusedDigits = [...remainingDigits, ...extraneousToKeep];
 
-    const finalUnusedDigits = [...remainingDigits, ...extraneousToKeep];
+      // --- 4. Badge Identification & Styled Data ---
+      const badgeList = [];
+      const badgeTargets = {
+        "sigma": { versions: [["3", "4", "1", "3", "4", "4", "7", "4", "6", "0", "6", "8"], ["3", "4", "1", "3", "4", "4", "7", "4", "6", "0", "6"], ["3", "4", "1", "3", "4", "4", "7", "4", "6", "0"], ["3", "4", "1", "3", "4", "4", "7", "4", "6"], ["3", "4", "1", "3", "4", "4", "7", "4"], ["3", "4", "1", "3", "4", "4", "7"], ["3", "4", "1", "3", "4", "4"], ["3", "4", "1", "3", "4"], ["3", "4", "1", "3"], ["3", "4", "1"], ["3", "4"]], color: "#FF69B4" },
+        "gold": { versions: [["1", "9", "6", "9"], ["1", "9", "6"], ["7", "9"]], color: "gold" },
+        "gold2": { versions: [["7", "9"]], color: "gold" },
+        "gold3": { versions: [["1", "1", "6"]], color: "gold" },
+        "blue_camel": { versions: [["7", "3"]], color: "#3b82f6" },
+        "green_camel": { versions: [["2", "1", "9"]], color: "#10b981" }
+      };
 
-    // --- 4. Badge Identification & Styled Data ---
-    const badgeList = [];
-    const badgeTargets = {
-      "sigma": { versions: [["3", "4", "1", "3", "4", "4", "7", "4", "6", "0", "6", "8"], ["3", "4", "1", "3", "4", "4", "7", "4", "6", "0", "6"], ["3", "4", "1", "3", "4", "4", "7", "4", "6", "0"], ["3", "4", "1", "3", "4", "4", "7", "4", "6"], ["3", "4", "1", "3", "4", "4", "7", "4"], ["3", "4", "1", "3", "4", "4", "7"], ["3", "4", "1", "3", "4", "4"], ["3", "4", "1", "3", "4"], ["3", "4", "1", "3"], ["3", "4", "1"], ["3", "4"]], color: "#FF69B4" },
-      "gold": { versions: [["1", "9", "6", "9"], ["1", "9", "6"], ["7", "9"]], color: "gold" },
-      "gold2": { versions: [["7", "9"]], color: "gold" },
-      "gold3": { versions: [["1", "1", "6"]], color: "gold" },
-      "blue_camel": { versions: [["7", "3"]], color: "#3b82f6" },
-      "green_camel": { versions: [["2", "1", "9"]], color: "#10b981" }
-    };
+      // Helper to setup empty stylable arrays
+      const createStyled = (val) => String(val).split('').map(c => ({ char: c, color: null }));
 
-    const createStyled = (val) => String(val).split('').map(c => ({ char: c, color: null }));
+      // Structure updated to securely hold additive and grid data independently for proper digit rendering
+      const styledData = {
+        globalStats: {
+          startingTotal: createStyled(aggregateStartingTotal),
+          endingTotal: createStyled(aggregateEndingTotal),
+          startChanged: createStyled(aggregateStartChanged),
+          changed: createStyled(aggregateEndChanged),
+          unchanged: createStyled(aggregateUnchanged)
+        },
+        globalPercentages: {
+          percChangedStart: createStyled(percChangedStart),
+          percChanged: createStyled(percChanged),
+          percUnchangedStart: createStyled(percUnchangedStart),
+          percUnchanged: createStyled(percUnchanged)
+        },
+        additiveStats: isMultiGrid ? {
+          startingTotal: createStyled(aggregateStartingTotal),
+          endingTotal: createStyled(aggregateEndingTotal),
+          startChanged: createStyled(additiveStartChanged),
+          changed: createStyled(additiveEndChanged),
+          unchanged: createStyled(additiveUnchangedTotal)
+        } : {},
+        additivePercentages: isMultiGrid ? {
+          percChangedStart: createStyled(additivePercChangedStart),
+          percChanged: createStyled(additivePercChanged),
+          percUnchangedStart: createStyled(additivePercUnchangedStart),
+          percUnchanged: createStyled(additivePercUnchanged)
+        } : {},
+        gridStats: {}
+      };
 
-    const styledData = {
-      stats: {
-        startingTotal: createStyled(aggregateStartingTotal),
-        endingTotal: createStyled(aggregateEndingTotal),
-        startChanged: createStyled(aggregateStartChanged),
-        changed: createStyled(aggregateEndChanged),
-        unchanged: createStyled(aggregateUnchanged)
-      },
-      percentages: {
-        percChangedStart: createStyled(percChangedStart),
-        percChanged: createStyled(percChanged),
-        percUnchangedStart: createStyled(percUnchangedStart),
-        percUnchanged: createStyled(percUnchanged)
+      // Inject individual grid stats into styledData if in multi-grid mode
+      if (isMultiGrid) {
+        settings.gridTypes.forEach(type => {
+          const gm = gridMetrics[type];
+          styledData.gridStats[type] = {
+            stats: {
+              startingTotal: createStyled(gm.startingTotal),
+              endingTotal: createStyled(gm.endingTotal),
+              startChanged: createStyled(gm.startChanged),
+              changed: createStyled(gm.changed),
+              unchanged: createStyled(gm.unchanged)
+            },
+            percentages: {
+              percChangedStart: createStyled(gm.percChangedStart),
+              percChanged: createStyled(gm.percChanged),
+              percUnchangedStart: createStyled(gm.percUnchangedStart),
+              percUnchanged: createStyled(gm.percUnchanged)
+            }
+          };
+        });
       }
-    };
 
-    const pools = [
-      {
+      const pools = [];
+
+      // Factory utility to build completely separate highlight pools
+      const addPool = (poolName, targetDataObj) => {
+        if (!targetDataObj || Object.keys(targetDataObj).length === 0) return;
+        pools.push({
+          name: poolName,
+          get source() {
+            return Object.values(targetDataObj)
+              .flatMap(arr => arr)
+              .filter(sd => !sd.color) // Strictly enforces rule: cannot overwrite
+              .map(sd => sd.char)
+              .join('');
+          },
+          applyStyle: (targetChar, color) => {
+            for (const key of Object.keys(targetDataObj)) {
+              const digitObj = targetDataObj[key].find(sd => sd.char === targetChar && !sd.color);
+              if (digitObj) {
+                digitObj.color = color;
+                return true;
+              }
+            }
+            return false;
+          }
+        });
+      };
+
+      // Add Digits Pool (Equation Block)
+      pools.push({
         name: "digits",
-        source: performance.filter(p => p.isPerfect).map(p => p.perfectDigitCount.toString()).join(''),
+        get source() {
+          return performance.filter(p => p.isPerfect).flatMap(p => p.styledDigits).filter(sd => !sd.color).map(sd => sd.char).join('');
+        },
         applyStyle: (targetChar, color) => {
           for (let p of performance) {
             if (p.isPerfect) {
@@ -415,111 +485,114 @@ const GameComponent = ({ settings, setStep }) => {
           }
           return false;
         }
-      },
-      {
-        name: "stats",
-        source: Object.values(styledData.stats).flatMap(arr => arr.map(a => a.char)).join(''),
-        applyStyle: (targetChar, color) => {
-          for (const key of Object.keys(styledData.stats)) {
-            const digitObj = styledData.stats[key].find(sd => sd.char === targetChar && !sd.color);
-            if (digitObj) { digitObj.color = color; return true; }
-          }
-          return false;
-        }
-      },
-      {
-        name: "percentages",
-        source: Object.values(styledData.percentages).flatMap(arr => arr.map(a => a.char)).join(''),
-        applyStyle: (targetChar, color) => {
-          for (const key of Object.keys(styledData.percentages)) {
-            const digitObj = styledData.percentages[key].find(sd => sd.char === targetChar && !sd.color);
-            if (digitObj) { digitObj.color = color; return true; }
-          }
-          return false;
-        }
-      }
-    ];
-
-    const hasPermutation = (sourceString, targetDigitsArray) => {
-      let tempPool = sourceString.split('');
-      return targetDigitsArray.every(d => {
-        const idx = tempPool.indexOf(d);
-        if (idx !== -1) {
-          tempPool.splice(idx, 1);
-          return true;
-        }
-        return false;
       });
-    };
 
-    Object.entries(badgeTargets).forEach(([badgeKey, config]) => {
-      let badgeAwarded = false;
-      for (const pool of pools) {
-        if (badgeAwarded) break;
-        for (const version of config.versions) {
-          if (hasPermutation(pool.source, version)) {
-            badgeList.push(badgeKey);
-            version.forEach(targetChar => pool.applyStyle(targetChar, config.color));
-            badgeAwarded = true;
-            break;
+      // Add ALL isolated separate pools based on instructions
+      addPool("globalStats", styledData.globalStats);
+      addPool("globalPercentages", styledData.globalPercentages);
+
+      if (isMultiGrid) {
+        addPool("additiveStats", styledData.additiveStats);
+        addPool("additivePercentages", styledData.additivePercentages);
+        settings.gridTypes.forEach(type => {
+          addPool(`gridStats_${type}`, styledData.gridStats[type].stats);
+          addPool(`gridPercentages_${type}`, styledData.gridStats[type].percentages);
+        });
+      }
+
+      const hasPermutation = (sourceString, targetDigitsArray) => {
+        let tempPool = sourceString.split('');
+        return targetDigitsArray.every(d => {
+          const idx = tempPool.indexOf(d);
+          if (idx !== -1) {
+            tempPool.splice(idx, 1);
+            return true;
+          }
+          return false;
+        });
+      };
+
+      // MULTIPLIER (x2) LOOP UPDATE: Continues to check the same pool iteratively
+      Object.entries(badgeTargets).forEach(([badgeKey, config]) => {
+        for (const pool of pools) {
+          let poolHasBadge = true;
+
+          while (poolHasBadge) {
+            let awardedThisIteration = false;
+
+            for (const version of config.versions) {
+              if (hasPermutation(pool.source, version)) {
+                badgeList.push(badgeKey); // Pushes multiples (x2) to the array naturally
+                version.forEach(targetChar => pool.applyStyle(targetChar, config.color));
+                awardedThisIteration = true;
+                break; // Breaks out of version search, but continues 'while' loop checking
+              }
+            }
+
+            if (!awardedThisIteration) {
+              poolHasBadge = false; // Exits 'while' loop only when this specific pool is out of matching digits
+            }
           }
         }
-      }
-    });
+      });
 
-    // 5. Final Submission
-    const highscoreData = {
-      topic: settings.topic || "General",
-      word: settings.word,
-      originalValue: wordVal,
-      language: settings.language,
-      grids: settings.gridTypes,
-      results: performance,
-      isDimensioned: isGloballyDimensioned,
-      badges: badgeList,
-      styledStatsData: styledData,
-      unusedDigits: finalUnusedDigits,
+      // 5. Final Submission
+      const highscoreData = {
+        topic: settings.topic || "General",
+        word: settings.word,
+        originalValue: wordVal,
+        language: settings.language,
+        grids: settings.gridTypes,
+        results: performance,
+        isDimensioned: isGloballyDimensioned,
+        badges: badgeList,
+        
+        // EXPORT ENTIRE EXPANDED STYLED DATA FOR RENDERER
+        styledStatsData: styledData,
+        unusedDigits: finalUnusedDigits,
 
-      // SHARED TOTALS
-      startingTotal: aggregateStartingTotal,
-      totalDigitsDisplayed: aggregateEndingTotal,
+        // SHARED TOTALS
+        startingTotal: aggregateStartingTotal,
+        totalDigitsDisplayed: aggregateEndingTotal,
 
-      // VERSION B: CURRENT BOARD (GLOBAL BAG)
-      aggregateStartChanged: aggregateStartChanged,
-      changedDigits: aggregateEndChanged,
-      unchangedDigits: aggregateUnchanged,
-      aggregatePercentChangedStart: percChangedStart,
-      percentageChanged: percChanged,
-      aggregatePercentUnchangedStart: percUnchangedStart,
-      percentageUnchanged: percUnchanged,
+        // GLOBAL GRID CHANGE STATS (GLOBAL BAG)
+        aggregateStartChanged: aggregateStartChanged,
+        changedDigits: aggregateEndChanged,
+        unchangedDigits: aggregateUnchanged,
+        aggregatePercentChangedStart: percChangedStart,
+        percentageChanged: percChanged,
+        aggregatePercentUnchangedStart: percUnchangedStart,
+        percentageUnchanged: percUnchanged,
 
-      // VERSION A: ADDITIVE BOARD (ADDITIVE)
-      additiveAggregateStartChanged: prevStartChanged,
-      additiveChangedDigits: prevEndChanged,
-      additiveUnchangedDigits: additiveUnchangedTotal,
-      additiveAggregatePercentChangedStart: prevPercChangedStart,
-      additivePercentageChanged: prevPercChanged,
-      additiveAggregatePercentUnchangedStart: prevPercUnchangedStart,
-      additivePercentageUnchanged: prevPercUnchanged,
+        // ADDITIVE GRID CHANGE STATS
+        ...(isMultiGrid && {
+          additiveAggregateStartChanged: additiveStartChanged,
+          additiveChangedDigits: additiveEndChanged,
+          additiveUnchangedDigits: additiveUnchangedTotal,
+          additiveAggregatePercentChangedStart: additivePercChangedStart,
+          additivePercentageChanged: additivePercChanged,
+          additiveAggregatePercentUnchangedStart: additivePercUnchangedStart,
+          additivePercentageUnchanged: additivePercUnchanged,
+          gridBreakdown: gridMetrics,
+        }),
+        
+        timestamp: serverTimestamp(),
+        isTruncated: isGloballyTruncated,
+        isOrganized: isGloballyOrganized,
+        associatedId: eqId,
+        associatedEquation: eqString,
+        equationMembers: originalSet ? originalSet.members : []
+      };
 
-      gridBreakdown: gridMetrics,
-      timestamp: serverTimestamp(),
-      isTruncated: isGloballyTruncated,
-      isOrganized: isGloballyOrganized,
-      associatedId: eqId,
-      associatedEquation: eqString,
-      equationMembers: originalSet ? originalSet.members : []
-    };
-
-    await addDoc(collection(db, "highscores"), highscoreData);
-    alert("Score submitted successfully!");
-    setStep('TOPIC');
-  } catch (e) {
-    console.error("Error adding document: ", e);
-    alert("Error submitting score.");
-  }
-};
-
+      await addDoc(collection(db, "highscores"), highscoreData);
+      alert("Score submitted successfully!");
+      setStep('TOPIC');
+    } catch (e) {
+      console.error("Error adding document: ", e);
+      alert("Error submitting score.");
+    }
+  };
+  
   // 2. Effects
   useEffect(() => {
     const initial = {};
