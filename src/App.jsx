@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import GameComponent from './components/GameComponent';
 import HighscoresView from './components/HighscoresView';
+import Instructions from './components/Instructions'; // Import new component
 import backgroundImage from './assets/background_home.png';
-
 import './App.css';
 
 export default function App() {
@@ -18,8 +18,8 @@ export default function App() {
 
   const renderStep = () => {
     if (step === 'HIGHSCORES') return <HighscoresView onBack={() => setStep('TOPIC')} />;
+    if (step === 'INSTRUCTIONS') return <Instructions onBack={() => setStep('TOPIC')} />;
 
-    // Menu logic with home- prefix
     const MenuWrapper = ({ title, children }) => (
       <div className="home-menu-container">
         <h2 className="home-menu-title">{title}</h2>
@@ -29,11 +29,22 @@ export default function App() {
 
     if (step === 'TOPIC') return (
       <div className="home-menu-container">
+        {/* Buttons now siblings with the Zodiac button to match styling/width */}
         <button className="home-menu-btn" onClick={() => setStep('HIGHSCORES')}>High Scores</button>
+        <button className="home-menu-btn" onClick={() => setStep('INSTRUCTIONS')}>Instructions</button>
+        
         <div className="home-menu-divider" />
-        <h2 className="home-menu-title">Topic</h2>
+        
+        <h2 className="home-menu-title">TOPIC</h2>
+        
         {["Chinese Zodiac"].map(t => (
-          <button key={t} className="home-menu-btn" onClick={() => { setSettings({...settings, topic: t}); setStep('WORD'); }}>{t}</button>
+          <button 
+            key={t} 
+            className="home-menu-btn" 
+            onClick={() => { setSettings({...settings, topic: t}); setStep('WORD'); }}
+          >
+            {t}
+          </button>
         ))}
       </div>
     );
@@ -71,7 +82,7 @@ export default function App() {
   };
 
   const getBackground = () => {
-    if (step === 'HIGHSCORES') return `url(${backgroundImage})`;
+    // Show background for everything except the active Game
     if (step !== 'GAME') return `url(${backgroundImage})`;
     return 'none';
   };

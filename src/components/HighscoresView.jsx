@@ -109,9 +109,13 @@ function HighscoresView({ onBack }) {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                             {[...s.grids]
                               .sort((a, b) => b.localeCompare(a)) 
-                              .map((g, idx) => (
-                                <span key={idx} className="hs-badge">{g}</span>
-                              ))
+                              .map((g, idx) => {
+                                return (
+                                  <span key={idx} className="hs-badge">
+                                    {g}
+                                  </span>
+                                );
+                              })
                             }
                           </div>
                         )}
@@ -241,7 +245,7 @@ function HighscoresView({ onBack }) {
                               )}
                             </div>
 
-                            <div className="hs-stat-text">
+                            <div className="hs-stat-text" style={{ marginBottom: '8px' }}>
                               Digits: <span className="hs-stat-val">
                                 {s.results
                                   ?.filter(res => res.isPerfect)
@@ -268,24 +272,48 @@ function HighscoresView({ onBack }) {
                                   )) || ""}
                               </span>
                             </div>
-                            
-                            <div className="hs-stat-text">
-                              Start/End: <span className="hs-stat-val">
-                                {renderStyledStat(s.startingTotal, s.styledStatsData?.stats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.stats?.endingTotal)}
-                              </span>
+
+                            {/* --- GLOBAL TOTALS (Current Image Logic) --- */}
+                            <div style={{ marginBottom: '10px' }}>
+                              <div style={{ fontSize: '0.55rem', color: '#555', marginBottom: '2px', fontWeight: 'bold' }}>GLOBAL COMPARISON</div>
+                              <div className="hs-stat-text">
+                                Start/End: <span className="hs-stat-val">
+                                  {renderStyledStat(s.startingTotal, s.styledStatsData?.stats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.stats?.endingTotal)}
+                                </span>
+                              </div>
+                              <div className="hs-stat-text">
+                                Changed: <span className="hs-stat-val">
+                                  {renderStyledStat(s.aggregateStartChanged, s.styledStatsData?.stats?.startChanged)} / {renderStyledStat(s.changedDigits, s.styledStatsData?.stats?.changed)}
+                                </span> ({renderStyledStat(s.aggregatePercentChangedStart, s.styledStatsData?.percentages?.percChangedStart)}%) / ({renderStyledStat(s.percentageChanged, s.styledStatsData?.percentages?.percChanged)}%)
+                              </div>
+                              <div className="hs-stat-text">
+                                Unchanged: <span className="hs-stat-val">
+                                  {renderStyledStat(s.unchangedDigits, s.styledStatsData?.stats?.unchanged)}
+                                </span> ({renderStyledStat(s.aggregatePercentUnchangedStart, s.styledStatsData?.percentages?.percUnchangedStart)}%) / ({renderStyledStat(s.percentageUnchanged, s.styledStatsData?.percentages?.percUnchanged)}%)
+                              </div>
                             </div>
 
-                            <div className="hs-stat-text">
-                              Changed: <span className="hs-stat-val">
-                                {renderStyledStat(s.aggregateStartChanged, s.styledStatsData?.stats?.startChanged)} / {renderStyledStat(s.changedDigits, s.styledStatsData?.stats?.changed)}
-                              </span> ({renderStyledStat(s.aggregatePercentChangedStart, s.styledStatsData?.percentages?.percChangedStart)}) / ({renderStyledStat(s.percentageChanged, s.styledStatsData?.percentages?.percChanged)}%)
-                            </div>
-
-                            <div className="hs-stat-text">
-                              Unchanged: <span className="hs-stat-val">
-                                {renderStyledStat(s.unchangedDigits, s.styledStatsData?.stats?.unchanged)}
-                              </span> ({renderStyledStat(s.aggregatePercentUnchangedStart, s.styledStatsData?.percentages?.percUnchangedStart)}) / ({renderStyledStat(s.percentageUnchanged, s.styledStatsData?.percentages?.percUnchanged)}%)
-                            </div>
+                            {/* --- ADDITIVE TOTALS (additive Image Logic) --- */}
+                            {s.additiveUnchangedDigits !== undefined && (
+                              <div style={{ borderTop: '1px dashed #333', paddingTop: '8px' }}>
+                                <div style={{ fontSize: '0.55rem', color: '#555', marginBottom: '2px', fontWeight: 'bold' }}>ADDITIVE COMPARISON</div>
+                                <div className="hs-stat-text">
+                                  Start/End: <span className="hs-stat-val">
+                                    {renderStyledStat(s.startingTotal, s.styledStatsData?.stats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.stats?.endingTotal)}
+                                  </span>
+                                </div>
+                                <div className="hs-stat-text">
+                                  Changed: <span className="hs-stat-val">
+                                    {s.additiveAggregateStartChanged} / {s.additiveChangedDigits}
+                                  </span> ({s.additiveAggregatePercentChangedStart}%) / ({s.additivePercentageChanged}%)
+                                </div>
+                                <div className="hs-stat-text">
+                                  Unchanged: <span className="hs-stat-val">
+                                    {s.additiveUnchangedDigits}
+                                  </span> ({s.additiveAggregatePercentUnchangedStart}%) / ({s.additivePercentageUnchanged}%)
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {isExpanded && s.gridBreakdown && 
@@ -296,8 +324,8 @@ function HighscoresView({ onBack }) {
                                   <div className="hs-grid-label">{gridName}</div>
                                   <div className="hs-stat-text" style={{ fontSize: '0.65rem' }}>
                                     <div>Start/End: <span className="hs-stat-val">{metrics.startingTotal} / {metrics.endingTotal}</span></div>
-                                    <div>Changed: <span className="hs-stat-val">{metrics.gridStartChanged} / {metrics.changed}</span> ({metrics.percentChangedStart}) / ({metrics.percentChanged}%)</div>
-                                    <div>Unchanged: <span className="hs-stat-val">{metrics.unchanged}</span> ({metrics.percentUnchangedStart}) / ({metrics.percentUnchanged}%)</div>
+                                    <div>Changed: <span className="hs-stat-val">{metrics.startChanged} / {metrics.changed}</span> ({metrics.percentChangedStart}%) / ({metrics.percentChanged}%)</div>
+                                    <div>Unchanged: <span className="hs-stat-val">{metrics.unchanged}</span> ({metrics.percentUnchangedStart}%) / ({metrics.percentUnchanged}%)</div>
                                   </div>
                                 </div>
                               ))
@@ -312,8 +340,6 @@ function HighscoresView({ onBack }) {
                             if (badge === "green_camel") return <img key={badge} src={camelGreenImg} style={{ width: '20px', height: '20px' }} alt="Green Camel" />;
                             if (badge === "blue_camel") return <img key={badge} src={camelBlueImg} style={{ width: '20px', height: '20px' }} alt="Blue Camel" />;
                             if (badge === "sigma") return <img key={badge} src={sndImg} style={{ width: '20px', height: '20px' }} alt="Sigma" />;
-                            // Fallbacks for the new badges
-                            //if (badge === "sigma2") return <img key={badge} src={sndImg} style={{ width: '20px', height: '20px', filter: 'hue-rotate(90deg)' }} alt="Sigma 2" title="Sigma 2" />;
                             if (badge === "gold") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
                             if (badge === "gold2") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
                             if (badge === "gold3") return <span key={badge} style={{ fontSize: '1.2rem' }} title="Gold">🏆</span>;
