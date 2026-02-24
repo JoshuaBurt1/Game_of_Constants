@@ -303,7 +303,7 @@
 }
 
 /* Tablet/Desktop: Show the full labels */
-@media (min-width: 769px) {
+@media (min-width: 1051px) {
   .desktop-text {
     display: inline;
   }
@@ -321,7 +321,7 @@
 }
 
 /* --- MOBILE ADAPTATION --- */
-@media (max-width: 768px) {
+@media (max-width: 1050px) {
   /* 1. Unlock the global scroll for mobile */
   :global(body), :global(#root) {
     overflow-y: auto !important;
@@ -347,15 +347,13 @@
   }
 
   /* --- Refined Nav Header Bar --- */
-  .nav-header {
+ .nav-header {
     display: grid !important;
     position: sticky;
     top: 0;
     z-index: 1000;
-    
-    /* Solid Bar Appearance */
-    background-color: #222 !important; /* Slightly lighter than background to define the bar */
-    margin: 0 -10px 15px -10px; /* Flush to screen edges */
+    background-color: #222 !important; 
+    margin: 0 -10px 15px -10px; 
     padding: 8px 6px;
     grid-template-columns: repeat(4, 1fr);
     gap: 4px;
@@ -364,8 +362,8 @@
 
   /* Integrated Header Buttons */
   .nav-header .reset-btn {
-    background-color: transparent !important; /* Blends into the bar */
-    border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Softer, integrated borders */
+    background-color: transparent !important; 
+    border: 1px solid rgba(255, 255, 255, 0.1) !important; 
     padding: 10px 2px;
     font-size: 0.7rem;
     white-space: nowrap;
@@ -377,13 +375,6 @@
     color: #bbb;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-  }
-
-  /* Primary Action Highlight */
-  .nav-header .submit-btn {
-    background-color: rgba(59, 130, 246, 0.2) !important; /* Subtle blue tint */
-    color: #60a5fa !important;
-    border-color: rgba(59, 130, 246, 0.3) !important;
   }
 
   /* 3. Typography & Grid Spacing */
@@ -412,12 +403,22 @@
 
   /* 4. Panel Fixes */
   .sticky-right-panel {
-    width: 100%; 
+    width: 100vw; /* Full viewport width */
+    margin: 0px -10px -15px -10px; /* Pull to screen edges and overlap container padding */
     box-sizing: border-box;
     position: relative; 
     height: auto; 
     top: 0;
-    padding: 15px 5px; /* Increased padding slightly for better tap targets */
+    
+    /* Integration Styling */
+    padding: 10px 10px;
+    background-color: #222 !important; /* Matches the nav-header bar for consistency */
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid #333;
+    border-bottom: none;
+    border-radius: 0; /* Remove rounded corners for the "integrated" look */
+    z-index: 5;
   }
 
   .control-btn-group {

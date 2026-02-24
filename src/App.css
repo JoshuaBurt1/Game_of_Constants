@@ -43,8 +43,9 @@ body, #root {
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  width: 420px;
-  height: 420px;
+  width: 90%;
+  max-width: 420px;
+  aspect-ratio: 1 / 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -120,6 +121,7 @@ body, #root {
   grid-template-columns: repeat(2, 1fr); 
   gap: 8px;
   width: 100%;
+  overflow-y: auto;
 }
 
 .home-grid-layout .home-menu-btn {
