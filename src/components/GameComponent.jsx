@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import './GameComponent.css';
 
 // --- UTILS & COMPONENTS ---
 import GridDisplay from '../components/GridDisplay';
@@ -807,111 +808,92 @@ const GameComponent = ({ settings, setStep }) => {
   const avgMatch = matchResults.reduce((acc, curr) => acc + curr.percent, 0) / matchResults.length;
   const brightness = 26 + (avgMatch * 0.4);
 
-  return (
-    <div className="game-screen-container" onMouseUp={() => setIsDragging(false)}>
-      <div className="game-content-max-width">
-        <div className="left-scroll-column">
-          <div style={{ marginBottom: '40px' }}>
-            <h2 style={{ margin: 0, letterSpacing: '1px', fontSize: '2rem', marginBottom: '15px' }}>
-              {settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})
-            </h2>
-          </div>
-          
-          <div className="grid-x-scroller">
-            <div className="grid-stack">
-              {settings.gridTypes.map(type => (
-                <div key={type}>
-                  <h5 style={{ color: '#444', marginBottom: '15px', fontSize: '0.8rem', letterSpacing: '2px' }}>{type.toUpperCase()}</h5>
-                  <GridDisplay
-                    gridType={type} tokens={gridTokens[type]} selections={selections} setSelections={setSelections}
-                    binaryMaps={binaryMaps} setBinaryMaps={setBinaryMaps} activeColor={activeColor}
-                    boxSelections={boxSelections} setBoxSelections={setBoxSelections}
-                    isDragging={isDragging} setIsDragging={setIsDragging} SYMBOLS={SYMBOLS}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="action-footer">
-            <button onClick={() => setStep('TOPIC')} className="reset-btn">Home</button>
-            <button onClick={clearAllHighlights} className="reset-btn">Clear All Highlights</button>
-            <button onClick={resetToOriginal} className="reset-btn">Reset</button>
-            <button onClick={handleSubmitScore} className="reset-btn submit-btn">Submit Score</button>
+return (
+  <div className="game-screen-container" onMouseUp={() => setIsDragging(false)}>
+    <div className="game-content-max-width">
+      <div className="left-scroll-column">
+        <div className="game-title-container">
+          <h2 className="game-main-title">
+            {settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})
+          </h2>
+        </div>
+        
+        <div className="grid-x-scroller">
+          <div className="grid-stack">
+            {settings.gridTypes.map(type => (
+              <div key={type}>
+                <h5 className="grid-section-label">{type}</h5>
+                <GridDisplay
+                  gridType={type} tokens={gridTokens[type]} selections={selections} setSelections={setSelections}
+                  binaryMaps={binaryMaps} setBinaryMaps={setBinaryMaps} activeColor={activeColor}
+                  boxSelections={boxSelections} setBoxSelections={setBoxSelections}
+                  isDragging={isDragging} setIsDragging={setIsDragging} SYMBOLS={SYMBOLS}
+                />
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="sticky-right-panel" style={{ backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})` }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
-            {/* Organize Button */}
-            <button
-              onClick={handleGlobalOrganize}
-              className="reset-btn"
-              style={{
-                margin: 0, flex: 1,
-                backgroundColor: isGloballyOrganized ? 'rgba(245, 158, 11, 0.15)' : undefined,
-                color: isGloballyOrganized ? '#fbbf24' : undefined,
-                borderColor: isGloballyOrganized ? '#f59e0b' : undefined
-              }}
-            >
-              {isGloballyOrganized ? 'Organized' : 'Organize'}
-            </button>
+        <div className="action-footer">
+          <button onClick={() => setStep('TOPIC')} className="reset-btn">Home</button>
+          <button onClick={clearAllHighlights} className="reset-btn">Clear All Highlights</button>
+          <button onClick={resetToOriginal} className="reset-btn">Reset</button>
+          <button onClick={handleSubmitScore} className="reset-btn submit-btn">Submit Score</button>
+        </div>
+      </div>
 
-            {/* Truncate Button */}
-            <button
-              onClick={handleGlobalTruncate}
-              className="reset-btn"
-              style={{
-                margin: 0, flex: 1,
-                backgroundColor: isGloballyTruncated ? 'rgba(59, 130, 246, 0.25)' : undefined,
-                color: isGloballyTruncated ? '#3b82f6' : undefined,
-                borderColor: isGloballyTruncated ? '#3b82f6' : undefined
-              }}
-            >
-              {isGloballyTruncated ? 'Truncated' : 'Truncate'}
-            </button>
+      <div className="sticky-right-panel" style={{ backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})` }}>
+        <div className="control-btn-group">
+          <button
+            onClick={handleGlobalOrganize}
+            className={`reset-btn toggle-btn ${isGloballyOrganized ? 'organized-active' : ''}`}
+          >
+            {isGloballyOrganized ? 'Organized' : 'Organize'}
+          </button>
 
-            {/* Organize by Dimension Button */}
-            <button
-              onClick={handleGlobalDimension}
-              className="reset-btn"
-              style={{
-                margin: 0, flex: 1,
-                backgroundColor: isGloballyDimensioned ? 'rgba(16, 185, 129, 0.25)' : undefined,
-                color: isGloballyDimensioned ? '#10b981' : undefined,
-                borderColor: isGloballyDimensioned ? '#10b981' : undefined
-              }}
-            >
-              {isGloballyDimensioned ? 'Dimensioned' : 'Dimension'}
-            </button>
-          </div>
+          <button
+            onClick={handleGlobalTruncate}
+            className={`reset-btn toggle-btn ${isGloballyTruncated ? 'truncated-active' : ''}`}
+          >
+            {isGloballyTruncated ? 'Truncated' : 'Truncate'}
+          </button>
 
-          <div className="palette-container">
-            {PALETTE.map(color => (
-              <div key={color} onClick={() => setActiveColor(color)} className="color-swatch" style={{ backgroundColor: color, border: activeColor === color ? '2px solid white' : 'none' }} />
-            ))}
-            <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 8px' }} />
-            <button onClick={() => setActiveColor('BIN')} className="tool-btn" style={{ backgroundColor: activeColor === 'BIN' ? '#3b82f6' : '#333' }}>BIN</button>
-            <button onClick={() => setActiveColor('DEC')} className="tool-btn" style={{ backgroundColor: activeColor === 'DEC' ? '#3b82f6' : '#333' }}>DEC</button>
-          </div>
+          <button
+            onClick={handleGlobalDimension}
+            className={`reset-btn toggle-btn ${isGloballyDimensioned ? 'dimension-active' : ''}`}
+          >
+            {isGloballyDimensioned ? 'Dimensioned' : 'Dimension'}
+          </button>
+        </div>
 
-          {activeColor === 'DEC' && boxedData && (
-            <div className="permutation-box">
-              <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 'bold', marginBottom: '10px', letterSpacing: '1px' }}>CONVERT GRID:</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {boxedData.perms
-                  .filter(p => p <= 9) 
-                  .map((p, idx) => (
-                  <button key={idx} onClick={() => handlePermutationClick(p)} style={{ padding: '6px 12px', background: '#10b981', border: 'none', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold', color: 'white', cursor: 'pointer' }}>{p}</button>
-                ))}
-                {boxedData.perms.every(p => p > 9) && (
-                  <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 'bold', marginBottom: '10px', letterSpacing: '1px' }}>
-                    Invalid selection.
-                  </div>  
-                )}
-              </div>
+        <div className="palette-container">
+          {PALETTE.map(color => (
+            <div 
+              key={color} 
+              onClick={() => setActiveColor(color)} 
+              className={`color-swatch ${activeColor === color ? 'active' : ''}`} 
+              style={{ backgroundColor: color }} 
+            />
+          ))}
+          <div className="palette-divider" />
+          <button onClick={() => setActiveColor('BIN')} className="tool-btn" style={{ backgroundColor: activeColor === 'BIN' ? '#3b82f6' : '#333' }}>BIN</button>
+          <button onClick={() => setActiveColor('DEC')} className="tool-btn" style={{ backgroundColor: activeColor === 'DEC' ? '#3b82f6' : '#333' }}>DEC</button>
+        </div>
+
+        {activeColor === 'DEC' && boxedData && (
+          <div className="permutation-box">
+            <div className="perm-label">CONVERT GRID:</div>
+            <div className="perm-btn-grid">
+              {boxedData.perms.filter(p => p <= 9).length > 0 ? (
+                boxedData.perms.filter(p => p <= 9).map((p, idx) => (
+                  <button key={idx} onClick={() => handlePermutationClick(p)} className="perm-click-btn">{p}</button>
+                ))
+              ) : (
+                <div className="perm-label">Invalid selection.</div>
+              )}
             </div>
-          )}
+          </div>
+        )}
 
           {matchResults.map((m, i) => {
             const isPerfect = m.percent >= 99.9;
