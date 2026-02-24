@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect } from 'react';
 import GameComponent from './components/GameComponent';
 import HighscoresView from './components/HighscoresView';
 import Instructions from './components/Instructions';
@@ -14,46 +14,55 @@ export default function App() {
   const [showInstallBtn, setShowInstallBtn] = useState(false);
 
   useEffect(() => {
+    // Check if the device is mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     const handler = (e) => {
-      // Prevent the mini-infobar from appearing on mobile
-      e.preventDefault();
-      // Stash the event so it can be triggered later.
-      setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
-      setShowInstallBtn(true);
+      // 1. Only show if we are on a mobile device
+      // 2. browser fires this only IF app is NOT installed
+      if (isMobile) {
+        e.preventDefault();
+        setDeferredPrompt(e);
+        setShowInstallBtn(true);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handler);
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    // If the app is successfully installed, hide the button
+    window.addEventListener('appinstalled', () => {
+      setShowInstallBtn(false);
+      setDeferredPrompt(null);
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', () => setShowInstallBtn(false));
+    };
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    // Show the install prompt
     deferredPrompt.prompt();
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
       console.log('User accepted the install prompt');
     }
-    // We've used the prompt, and can't use it again
     setDeferredPrompt(null);
     setShowInstallBtn(false);
   };
 
-  // --- NEW: Loading Screen Cleanup ---
+  // --- Loading Screen Cleanup ---
   useEffect(() => {
     const loader = document.getElementById('initial-loader');
     if (loader) {
-      loader.style.opacity = '0'; // Trigger the CSS transition
+      loader.style.opacity = '0';
       const timer = setTimeout(() => {
-        loader.remove(); // Clean up the DOM
-      }, 500); // Matches the 0.5s transition in your CSS
+        loader.remove();
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, []);
-  // -----------------------------------
 
   const toggleGridType = (type) => {
     setSettings(prev => ({
@@ -75,7 +84,7 @@ export default function App() {
 
     if (step === 'TOPIC') return (
       <div className="home-menu-container">
-        {/* Only show if the browser supports it and app isn't installed */}
+        {/* Only shows on mobile + if not installed */}
         {showInstallBtn && (
           <button className="home-menu-btn install-btn" onClick={handleInstallClick}>
             📲 Install App
@@ -133,7 +142,6 @@ export default function App() {
   };
 
   const getBackground = () => {
-    // Show background for everything except the active Game
     if (step !== 'GAME') return `url(${backgroundImage})`;
     return 'none';
   };
