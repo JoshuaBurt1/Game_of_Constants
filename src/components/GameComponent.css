@@ -412,12 +412,12 @@
     
     /* Integration Styling */
     padding: 10px 10px;
-    background-color: #222 !important; /* Matches the nav-header bar for consistency */
+    background-color: #222 !important;
     border-left: none;
     border-right: none;
     border-top: 1px solid #333;
     border-bottom: none;
-    border-radius: 0; /* Remove rounded corners for the "integrated" look */
+    border-radius: 0;
     z-index: 5;
   }
 

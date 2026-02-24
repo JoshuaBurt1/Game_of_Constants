@@ -68,13 +68,12 @@ function HighscoresView({ onBack }) {
       {loading ? <LoadingBox /> : (
         <div className="hs-main-card">
           <div className="hs-header">
-            <div style={{ flex: 1 }}></div>
-            <h2 className="hs-menu-title">High Scores</h2>
-            <div style={{ flex: 1, textAlign: 'right' }}>
-              <button onClick={onBack} className="home-menu-btn" style={{ width: 'auto', padding: '6px 12px', fontSize: '0.75rem' }}>
-                Back to Menu
+              <h2 className="hs-menu-title" style={{ flex: 1, textAlign: 'left', margin: 0, paddingLeft: '10px' }}>
+                  High Scores
+              </h2>
+              <button onClick={onBack} className="hs-menu-btn">
+                  Home
               </button>
-            </div>
           </div>
 
           <div className="hs-table-scroll">
@@ -236,17 +235,6 @@ function HighscoresView({ onBack }) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left', minWidth: '160px' }}>
                           <div style={{ paddingBottom: '6px', borderBottom: (s.grids?.length > 1 && s.gridBreakdown && isExpanded) ? '1px solid #333' : 'none' }}>
                             
-                            {/* HEADER SECTION */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '0.6rem', fontWeight: 'bold', color: '#888', textTransform: 'uppercase' }}>Digit Stats</span>
-                              {s.grids?.length > 1 && s.gridBreakdown && (
-                                <button className="hs-grid-btn" onClick={() => toggleGrid(s.id)}>
-                                  {isExpanded ? 'Hide' : 'Grids'}
-                                  <span className="hs-grid-arrow" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
-                                </button>
-                              )}
-                            </div>
-
                             {/* DIGITS ROW (Equation Matches) */}
                             <div className="hs-stat-text" style={{ marginBottom: '8px' }}>
                               Digits: <span className="hs-stat-val">
@@ -259,73 +247,88 @@ function HighscoresView({ onBack }) {
                               </span>
                             </div>
 
-                            {/* GLOBAL TOTALS - Fixed paths to globalStats/globalPercentages */}
-                            <div style={{ marginBottom: '10px' }}>
-                              <div style={{ fontSize: '0.55rem', color: '#555', marginBottom: '2px', fontWeight: 'bold' }}>GLOBAL COMPARISON</div>
-                              <div className="hs-stat-text">
-                                Start/End: <span className="hs-stat-val">
-                                  {renderStyledStat(s.startingTotal, s.styledStatsData?.globalStats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.globalStats?.endingTotal)}
-                                </span>
-                              </div>
-                              <div className="hs-stat-text">
-                                Changed: <span className="hs-stat-val">
-                                  {renderStyledStat(s.aggregateStartChanged, s.styledStatsData?.globalStats?.startChanged)} / {renderStyledStat(s.changedDigits, s.styledStatsData?.globalStats?.changed)}
-                                </span> ({renderStyledStat(s.aggregatePercentChangedStart, s.styledStatsData?.globalPercentages?.percChangedStart)}%) / ({renderStyledStat(s.percentageChanged, s.styledStatsData?.globalPercentages?.percChanged)}%)
-                              </div>
-                              <div className="hs-stat-text">
-                                Unchanged: <span className="hs-stat-val">
-                                  {renderStyledStat(s.unchangedDigits, s.styledStatsData?.globalStats?.unchanged)}
-                                </span> ({renderStyledStat(s.aggregatePercentUnchangedStart, s.styledStatsData?.globalPercentages?.percUnchangedStart)}%) / ({renderStyledStat(s.percentageUnchanged, s.styledStatsData?.globalPercentages?.percUnchanged)}%)
-                              </div>
-                            </div>
-
-                            {/* ADDITIVE TOTALS - Now using renderStyledStat */}
-                            {s.grids?.length > 1 && s.additiveUnchangedDigits !== undefined && (
-                              <div style={{ borderTop: '1px dashed #333', paddingTop: '8px' }}>
-                                <div style={{ fontSize: '0.55rem', color: '#555', marginBottom: '2px', fontWeight: 'bold' }}>ADDITIVE COMPARISON</div>
+                            {/* COMPARISONS WRAPPER */}
+                            <div className="hs-stats-row">
+                              {/* GLOBAL TOTALS */}
+                              <div className="hs-global-block">
+                                <div style={{ fontSize: '0.55rem', color: '#555', marginBottom: '2px', fontWeight: 'bold' }}>GLOBAL COMPARISON</div>
                                 <div className="hs-stat-text">
                                   Start/End: <span className="hs-stat-val">
-                                    {renderStyledStat(s.startingTotal, s.styledStatsData?.additiveStats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.additiveStats?.endingTotal)}
+                                    {renderStyledStat(s.startingTotal, s.styledStatsData?.globalStats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.globalStats?.endingTotal)}
                                   </span>
                                 </div>
                                 <div className="hs-stat-text">
                                   Changed: <span className="hs-stat-val">
-                                    {renderStyledStat(s.additiveAggregateStartChanged, s.styledStatsData?.additiveStats?.startChanged)} / {renderStyledStat(s.additiveChangedDigits, s.styledStatsData?.additiveStats?.changed)}
-                                  </span> ({renderStyledStat(s.additiveAggregatePercentChangedStart, s.styledStatsData?.additivePercentages?.percChangedStart)}%) / ({renderStyledStat(s.additivePercentageChanged, s.styledStatsData?.additivePercentages?.percChanged)}%)
+                                    {renderStyledStat(s.aggregateStartChanged, s.styledStatsData?.globalStats?.startChanged)} / {renderStyledStat(s.changedDigits, s.styledStatsData?.globalStats?.changed)}
+                                  </span> ({renderStyledStat(s.aggregatePercentChangedStart, s.styledStatsData?.globalPercentages?.percChangedStart)}%) / ({renderStyledStat(s.percentageChanged, s.styledStatsData?.globalPercentages?.percChanged)}%)
                                 </div>
                                 <div className="hs-stat-text">
                                   Unchanged: <span className="hs-stat-val">
-                                    {renderStyledStat(s.additiveUnchangedDigits, s.styledStatsData?.additiveStats?.unchanged)}
-                                  </span> ({renderStyledStat(s.additiveAggregatePercentUnchangedStart, s.styledStatsData?.additivePercentages?.percUnchangedStart)}%) / ({renderStyledStat(s.additivePercentageUnchanged, s.styledStatsData?.additivePercentages?.percUnchanged)}%)
+                                    {renderStyledStat(s.unchangedDigits, s.styledStatsData?.globalStats?.unchanged)}
+                                  </span> ({renderStyledStat(s.aggregatePercentUnchangedStart, s.styledStatsData?.globalPercentages?.percUnchangedStart)}%) / ({renderStyledStat(s.percentageUnchanged, s.styledStatsData?.globalPercentages?.percUnchanged)}%)
                                 </div>
                               </div>
-                            )}
-                          </div>
 
-                          {/* BREAKDOWN LIST - Now using renderStyledStat for individual grids */}
-                          {isExpanded && s.grids?.length > 1 && s.gridBreakdown && 
-                            Object.entries(s.gridBreakdown)
-                              .sort(([a], [b]) => b.localeCompare(a))
-                              .map(([gridName, metrics]) => {
-                                const gridData = s.styledStatsData?.gridStats?.[gridName];
-                                return (
-                                  <div key={gridName} className="hs-grid-breakdown-box">
-                                    <div className="hs-grid-label">{gridName}</div>
-                                    <div className="hs-stat-text" style={{ fontSize: '0.65rem' }}>
-                                      <div>Start/End: <span className="hs-stat-val">
-                                        {renderStyledStat(metrics.startingTotal, gridData?.stats?.startingTotal)} / {renderStyledStat(metrics.endingTotal, gridData?.stats?.endingTotal)}
-                                      </span></div>
-                                      <div>Changed: <span className="hs-stat-val">
-                                        {renderStyledStat(metrics.startChanged, gridData?.stats?.startChanged)} / {renderStyledStat(metrics.changed, gridData?.stats?.changed)}
-                                      </span> ({renderStyledStat(metrics.percentChangedStart, gridData?.percentages?.percChangedStart)}%) / ({renderStyledStat(metrics.percentChanged, gridData?.percentages?.percChanged)}%)</div>
-                                      <div>Unchanged: <span className="hs-stat-val">
-                                        {renderStyledStat(metrics.unchanged, gridData?.stats?.unchanged)}
-                                      </span> ({renderStyledStat(metrics.percentUnchangedStart, gridData?.percentages?.percUnchangedStart)}%) / ({renderStyledStat(metrics.percentUnchanged, gridData?.percentages?.percUnchanged)}%)</div>
-                                    </div>
+                              {/* ADDITIVE TOTALS */}
+                              {s.grids?.length > 1 && s.additiveUnchangedDigits !== undefined && (
+                                <div className="hs-additive-block">
+                                  <div style={{ fontSize: '0.55rem', color: '#555', marginBottom: '2px', fontWeight: 'bold' }}>ADDITIVE COMPARISON</div>
+                                  <div className="hs-stat-text">
+                                    Start/End: <span className="hs-stat-val">
+                                      {renderStyledStat(s.startingTotal, s.styledStatsData?.additiveStats?.startingTotal)} / {renderStyledStat(s.totalDigitsDisplayed, s.styledStatsData?.additiveStats?.endingTotal)}
+                                    </span>
                                   </div>
-                                );
-                              })
-                          }
+                                  <div className="hs-stat-text">
+                                    Changed: <span className="hs-stat-val">
+                                      {renderStyledStat(s.additiveAggregateStartChanged, s.styledStatsData?.additiveStats?.startChanged)} / {renderStyledStat(s.additiveChangedDigits, s.styledStatsData?.additiveStats?.changed)}
+                                    </span> ({renderStyledStat(s.additiveAggregatePercentChangedStart, s.styledStatsData?.additivePercentages?.percChangedStart)}%) / ({renderStyledStat(s.additivePercentageChanged, s.styledStatsData?.additivePercentages?.percChanged)}%)
+                                  </div>
+                                  <div className="hs-stat-text">
+                                    Unchanged: <span className="hs-stat-val">
+                                      {renderStyledStat(s.additiveUnchangedDigits, s.styledStatsData?.additiveStats?.unchanged)}
+                                    </span> ({renderStyledStat(s.additiveAggregatePercentUnchangedStart, s.styledStatsData?.additivePercentages?.percUnchangedStart)}%) / ({renderStyledStat(s.additivePercentageUnchanged, s.styledStatsData?.additivePercentages?.percUnchanged)}%)
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              {s.grids?.length > 1 && s.gridBreakdown && (
+                                <button className="hs-grid-btn" onClick={() => toggleGrid(s.id)}>
+                                  {isExpanded ? 'Hide' : 'Grids'}
+                                  <span className="hs-grid-arrow" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                                </button>
+                              )}
+                            </div>
+
+                          {/* BREAKDOWN LIST - Now wrapped in a row for mobile flex */}
+                          {isExpanded && s.grids?.length > 1 && s.gridBreakdown && (
+                            <div className="hs-grids-row">
+                              {Object.entries(s.gridBreakdown)
+                                .sort(([a], [b]) => b.localeCompare(a))
+                                .map(([gridName, metrics]) => {
+                                  const gridData = s.styledStatsData?.gridStats?.[gridName];
+                                  return (
+                                    <div key={gridName} className="hs-grid-breakdown-box">
+                                      <div className="hs-grid-label">{gridName}</div>
+                                      <div className="hs-stat-text" style={{ fontSize: '0.65rem' }}>
+                                        <div>Start/End: <span className="hs-stat-val">
+                                          {renderStyledStat(metrics.startingTotal, gridData?.stats?.startingTotal)} / {renderStyledStat(metrics.endingTotal, gridData?.stats?.endingTotal)}
+                                        </span></div>
+                                        <div>Changed: <span className="hs-stat-val">
+                                          {renderStyledStat(metrics.startChanged, gridData?.stats?.startChanged)} / {renderStyledStat(metrics.changed, gridData?.stats?.changed)}
+                                        </span> ({renderStyledStat(metrics.percentChangedStart, gridData?.percentages?.percChangedStart)}%) / ({renderStyledStat(metrics.percentChanged, gridData?.percentages?.percChanged)}%)</div>
+                                        <div>Unchanged: <span className="hs-stat-val">
+                                          {renderStyledStat(metrics.unchanged, gridData?.stats?.unchanged)}
+                                        </span> ({renderStyledStat(metrics.percentUnchangedStart, gridData?.percentages?.percUnchangedStart)}%) / ({renderStyledStat(metrics.percentUnchanged, gridData?.percentages?.percUnchanged)}%)</div>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              }
+                            </div>
+                          )}
                         </div>
                       </td>
 
