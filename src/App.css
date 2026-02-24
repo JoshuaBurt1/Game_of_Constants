@@ -12,8 +12,9 @@ body, #root {
   background-color: #1a1a1a;
   color: #ffffff;
   min-height: 100vh;
-  height: 100%;
-  overflow: hidden; /* Prevents double scrollbars */
+  min-height: 100dvh; 
+  width: 100%;
+  overflow: hidden; 
 }
 
 /*-- Home screen App.jsx --- */
@@ -23,6 +24,7 @@ body, #root {
   align-items: center;
   width: 100vw;
   min-height: 100vh;
+  min-height: 100dvh; 
   margin: 0;
   padding: 0;
   box-sizing: border-box;

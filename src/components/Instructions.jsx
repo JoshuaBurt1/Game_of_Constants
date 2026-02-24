@@ -3,7 +3,7 @@ import React from 'react';
 
 const Instructions = ({ onBack }) => {
   return (
-    <div className="home-menu-container" style={{ maxWidth: '500px' }}>
+    <div className="home-menu-container">
       <h2 className="home-menu-title">How to Play</h2>
       
       <div style={{ 
