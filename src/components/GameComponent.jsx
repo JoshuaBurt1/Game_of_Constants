@@ -808,232 +808,238 @@ const GameComponent = ({ settings, setStep }) => {
   const avgMatch = matchResults.reduce((acc, curr) => acc + curr.percent, 0) / matchResults.length;
   const brightness = 26 + (avgMatch * 0.4);
 
-return (
-  <div className="game-screen-container" onMouseUp={() => setIsDragging(false)}>
-    <div className="game-content-max-width">
-      <div className="left-scroll-column">
-        <div className="game-title-container">
-          <h2 className="game-main-title">
-            {settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})
-          </h2>
-        </div>
-        
-        <div className="grid-x-scroller">
-          <div className="grid-stack">
-            {settings.gridTypes.map(type => (
-              <div key={type}>
-                <h5 className="grid-section-label">{type}</h5>
-                <GridDisplay
-                  gridType={type} tokens={gridTokens[type]} selections={selections} setSelections={setSelections}
-                  binaryMaps={binaryMaps} setBinaryMaps={setBinaryMaps} activeColor={activeColor}
-                  boxSelections={boxSelections} setBoxSelections={setBoxSelections}
-                  isDragging={isDragging} setIsDragging={setIsDragging} SYMBOLS={SYMBOLS}
-                />
-              </div>
-            ))}
+  return (
+    <div className="game-screen-container" onMouseUp={() => setIsDragging(false)}>
+      <div className="game-content-max-width">
+        <div className="left-scroll-column">
+          <div className="action-footer nav-header">
+            <button onClick={() => setStep('TOPIC')} className="reset-btn">Home</button>
+            <button onClick={clearAllHighlights} className="reset-btn">Clear<span className="desktop-text"> All Highlights</span></button>
+            <button onClick={resetToOriginal} className="reset-btn">Reset</button>
+            <button onClick={handleSubmitScore} className="reset-btn submit-btn">Submit<span className="desktop-text"> Score</span></button>
           </div>
-        </div>
-
-        <div className="action-footer">
-          <button onClick={() => setStep('TOPIC')} className="reset-btn">Home</button>
-          <button onClick={clearAllHighlights} className="reset-btn">Clear All Highlights</button>
-          <button onClick={resetToOriginal} className="reset-btn">Reset</button>
-          <button onClick={handleSubmitScore} className="reset-btn submit-btn">Submit Score</button>
-        </div>
-      </div>
-
-      <div className="sticky-right-panel" style={{ backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})` }}>
-        <div className="control-btn-group">
-          <button
-            onClick={handleGlobalOrganize}
-            className={`reset-btn toggle-btn ${isGloballyOrganized ? 'organized-active' : ''}`}
-          >
-            {isGloballyOrganized ? 'Organized' : 'Organize'}
-          </button>
-
-          <button
-            onClick={handleGlobalTruncate}
-            className={`reset-btn toggle-btn ${isGloballyTruncated ? 'truncated-active' : ''}`}
-          >
-            {isGloballyTruncated ? 'Truncated' : 'Truncate'}
-          </button>
-
-          <button
-            onClick={handleGlobalDimension}
-            className={`reset-btn toggle-btn ${isGloballyDimensioned ? 'dimension-active' : ''}`}
-          >
-            {isGloballyDimensioned ? 'Dimensioned' : 'Dimension'}
-          </button>
-        </div>
-
-        <div className="palette-container">
-          {PALETTE.map(color => (
-            <div 
-              key={color} 
-              onClick={() => setActiveColor(color)} 
-              className={`color-swatch ${activeColor === color ? 'active' : ''}`} 
-              style={{ backgroundColor: color }} 
-            />
-          ))}
-          <div className="palette-divider" />
-          <button onClick={() => setActiveColor('BIN')} className="tool-btn" style={{ backgroundColor: activeColor === 'BIN' ? '#3b82f6' : '#333' }}>BIN</button>
-          <button onClick={() => setActiveColor('DEC')} className="tool-btn" style={{ backgroundColor: activeColor === 'DEC' ? '#3b82f6' : '#333' }}>DEC</button>
-        </div>
-
-        {activeColor === 'DEC' && boxedData && (
-          <div className="permutation-box">
-            <div className="perm-label">CONVERT GRID:</div>
-            <div className="perm-btn-grid">
-              {boxedData.perms.filter(p => p <= 9).length > 0 ? (
-                boxedData.perms.filter(p => p <= 9).map((p, idx) => (
-                  <button key={idx} onClick={() => handlePermutationClick(p)} className="perm-click-btn">{p}</button>
-                ))
-              ) : (
-                <div className="perm-label">Invalid selection.</div>
-              )}
+          <div className="game-title-container">
+            <h2 className="game-main-title">
+              {settings.word} ({ZODIAC_NAMES[settings.language][settings.word]})
+            </h2>
+          </div>
+          
+          <div className="grid-x-scroller">
+            <div className="grid-stack">
+              {settings.gridTypes.map(type => (
+                <div key={type}>
+                  <h5 className="grid-section-label">{type}</h5>
+                  <GridDisplay
+                    gridType={type} tokens={gridTokens[type]} selections={selections} setSelections={setSelections}
+                    binaryMaps={binaryMaps} setBinaryMaps={setBinaryMaps} activeColor={activeColor}
+                    boxSelections={boxSelections} setBoxSelections={setBoxSelections}
+                    isDragging={isDragging} setIsDragging={setIsDragging} SYMBOLS={SYMBOLS}
+                  />
+                </div>
+              ))}
             </div>
           </div>
-        )}
 
-          {matchResults.map((m, i) => {
-            const isPerfect = m.percent >= 99.9;
-            const isElevated = symbolsToElevate.has(m.symbol) && !isPerfect;
-            const override = cardOverrides[m.symbol] || {};
-            const parentSetName = isElevated ? EQUATION_SETS.find(s => s.members.includes(m.symbol) && activeSetIds.includes(s.id))?.id : null;
-            
-            const visualBank = [...(colorDigitMap[m.dominantColor] || [])];
-            const tempBank = [...visualBank];
-            // CLEAN PRIORITY ALLOCATION
-            const dimStr = m.data.dim || "";
-            const matchedState = { val: [], mult: [], exp: [], dim: [] };
+          <div className="action-footer">
+            <button onClick={() => setStep('TOPIC')} className="reset-btn">Home</button>
+            <button onClick={clearAllHighlights} className="reset-btn">Clear<span className="desktop-text"> All Highlights</span></button>
+            <button onClick={resetToOriginal} className="reset-btn">Reset</button>
+            <button onClick={handleSubmitScore} className="reset-btn submit-btn">Submit<span className="desktop-text"> Score</span></button>
+          </div>
+        </div>
 
-            let displayValStr = m.data.val || "";
-            if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
-              displayValStr = displayValStr.substring(0, override.truncateIndex + 1);
-            }
-            const multStr = m.data.mult || "";
-            const expStr = m.data.exp || "";
+        <div className="sticky-right-panel" style={{ backgroundColor: `rgb(${brightness}, ${brightness + 5}, ${brightness + 10})` }}>
+          <div className="control-btn-group">
+            <button
+              onClick={handleGlobalOrganize}
+              className={`reset-btn toggle-btn ${isGloballyOrganized ? 'organized-active' : ''}`}
+            >
+              {isGloballyOrganized ? 'Organized' : 'Organize'}
+            </button>
 
-            // Helper to allocate matches based on string segment
-            const allocateMatches = (str, isEnabled = true) => {
-              return str.split('').map(char => {
-                // Sync regex: standard digits + superscripts
-                if (isEnabled && /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char)) {
-                  const bIdx = tempBank.indexOf(char);
-                  if (bIdx !== -1) {
-                    tempBank.splice(bIdx, 1);
-                    return true;
-                  }
-                }
-                return false;
-              });
-            };
+            <button
+              onClick={handleGlobalTruncate}
+              className={`reset-btn toggle-btn ${isGloballyTruncated ? 'truncated-active' : ''}`}
+            >
+              {isGloballyTruncated ? 'Truncated' : 'Truncate'}
+            </button>
 
-            // CLEAN PRIORITY ALLOCATION
-            const isDim = !!override.isDimensioned; // Helper boolean
+            <button
+              onClick={handleGlobalDimension}
+              className={`reset-btn toggle-btn ${isGloballyDimensioned ? 'dimension-active' : ''}`}
+            >
+              {isGloballyDimensioned ? 'Dimensioned' : 'Dimension'}
+            </button>
+          </div>
 
-            if (isDim && override.isOrganized) {
-              matchedState.dim = allocateMatches(dimStr, true);
-              matchedState.exp = allocateMatches(expStr);
-              matchedState.mult = allocateMatches(multStr);
-              matchedState.val = allocateMatches(displayValStr);
-            } else if (isDim) {
-              matchedState.dim = allocateMatches(dimStr, true);
-              matchedState.val = allocateMatches(displayValStr);
-              matchedState.mult = allocateMatches(multStr);
-              matchedState.exp = allocateMatches(expStr);
-            } else if (override.isOrganized) {
-              matchedState.exp = allocateMatches(expStr);
-              matchedState.mult = allocateMatches(multStr);
-              matchedState.val = allocateMatches(displayValStr);
-              matchedState.dim = allocateMatches(dimStr, false); // Force false
-            } else {
-              matchedState.val = allocateMatches(displayValStr);
-              matchedState.mult = allocateMatches(multStr);
-              matchedState.exp = allocateMatches(expStr);
-              matchedState.dim = allocateMatches(dimStr, false); // Force false
-            }
+          <div className="palette-container">
+            {PALETTE.map(color => (
+              <div 
+                key={color} 
+                onClick={() => setActiveColor(color)} 
+                className={`color-swatch ${activeColor === color ? 'active' : ''}`} 
+                style={{ backgroundColor: color }} 
+              />
+            ))}
+            <div className="palette-divider" />
+            <button onClick={() => setActiveColor('BIN')} className="tool-btn" style={{ backgroundColor: activeColor === 'BIN' ? '#3b82f6' : '#333' }}>BIN</button>
+            <button onClick={() => setActiveColor('DEC')} className="tool-btn" style={{ backgroundColor: activeColor === 'DEC' ? '#3b82f6' : '#333' }}>DEC</button>
+          </div>
 
-            let hasValMatches = matchedState.val.includes(true);
-            let hasMultMatches = matchedState.mult.includes(true) || matchedState.exp.includes(true);
-
-            const renderDigits = (str, segmentType) => {
-              if (!str) return null;
-              
-              let displayStr = segmentType === 'val' ? displayValStr : str;
-
-              return displayStr.split('').map((char, idx) => {
-                const isDigit = /[0-9]/.test(char);
-                let color = 'rgba(255,255,255,0.15)'; 
-                
-                if (isDigit) {
-                  if (matchedState[segmentType][idx]) color = '#ffffff'; // Match found
-                } else {
-                  color = '#ffffff'; // Non-digits (., -) are always rendered white
-                }
-                return <span key={idx} style={{ color, transition: 'all 0.2s' }}>{char}</span>;
-              });
-            };
-
-            const renderUnit = (unitStr) => {
-              if (!unitStr) return null;
-              let dimIdx = 0;
-              const digitRegex = /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/;
-
-              return unitStr.split('').map((char, idx) => {
-                if (digitRegex.test(char)) {
-                  // If isDimensioned was false, matchedState.dim[dimIdx] will be undefined/false
-                  const isMatched = matchedState.dim[dimIdx];
-                  dimIdx++;
-                  const color = isMatched ? '#ffffff' : 'rgba(255,255,255,0.15)';
-                  return <span key={`unit-${idx}`} style={{ color, transition: 'all 0.2s' }}>{char}</span>;
-                }
-                return <span key={`unit-${idx}`} style={{ color: 'rgba(255,255,255,0.4)' }}>{char}</span>;
-              });
-            };
-
-            return (
-              <div key={i} className={`constant-card ${isPerfect ? 'perfect-match' : ''} ${isElevated ? 'elevated' : ''}`}
-                style={{
-                  borderColor: isPerfect ? m.dominantColor : undefined,
-                  boxShadow: isPerfect ? `0 0 15px ${m.dominantColor}40` : undefined,
-                  backgroundColor: isPerfect ? undefined : (m.percent > 0 ? `${m.dominantColor}15` : undefined),
-                  backgroundImage: isPerfect ? `linear-gradient(90deg, ${m.dominantColor}15 0%, ${m.dominantColor}40 50%, ${m.dominantColor}15 100%)` : 'none'
-                }}>
-                <div className="card-header">
-                  <div className="card-content">
-                    {parentSetName && <div className="set-badge">{parentSetName.replace(/_/g, ' ')}</div>}
-                    <span className="symbol-text">{m.symbol}</span>
-                  </div>
-                  <div className="action-stack">
-                    <span style={{ fontSize: '0.8rem', color: isPerfect ? '#fff' : m.dominantColor, fontWeight: 'bold' }}>
-                      {m.percent.toFixed(1)}% {isPerfect && '★'}
-                    </span>
-                  </div>
-                </div>
-                <div className="value-display">
-                  {renderDigits(m.data.val, 'val')}
-                  {m.data.mult && (
-                    <>
-                      <span style={{ color: (!override.isOrganized || hasValMatches || hasMultMatches) ? 'white' : 'rgba(255,255,255,0.15)' }}>{" × "}</span>
-                      <span style={{ position: 'relative' }}>
-                        {renderDigits(m.data.mult, 'mult')}
-                        <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>
-                          <span style={{ color: 'rgba(255,255,255,0.15)' }}>{m.data.mag}</span>
-                          {renderDigits(m.data.exp, 'exp')}
-                        </sup>
-                      </span>
-                    </>
-                  )}
-                  <span className="unit-text">{renderUnit(m.data.unit)}</span>
-                </div>
+          {activeColor === 'DEC' && boxedData && (
+            <div className="permutation-box">
+              <div className="perm-label">CONVERT GRID:</div>
+              <div className="perm-btn-grid">
+                {boxedData.perms.filter(p => p <= 9).length > 0 ? (
+                  boxedData.perms.filter(p => p <= 9).map((p, idx) => (
+                    <button key={idx} onClick={() => handlePermutationClick(p)} className="perm-click-btn">{p}</button>
+                  ))
+                ) : (
+                  <div className="perm-label">Invalid selection.</div>
+                )}
               </div>
-            );
-          })}
+            </div>
+          )}
+
+            {matchResults.map((m, i) => {
+              const isPerfect = m.percent >= 99.9;
+              const isElevated = symbolsToElevate.has(m.symbol) && !isPerfect;
+              const override = cardOverrides[m.symbol] || {};
+              const parentSetName = isElevated ? EQUATION_SETS.find(s => s.members.includes(m.symbol) && activeSetIds.includes(s.id))?.id : null;
+              
+              const visualBank = [...(colorDigitMap[m.dominantColor] || [])];
+              const tempBank = [...visualBank];
+              // CLEAN PRIORITY ALLOCATION
+              const dimStr = m.data.dim || "";
+              const matchedState = { val: [], mult: [], exp: [], dim: [] };
+
+              let displayValStr = m.data.val || "";
+              if (override.truncateIndex !== undefined && override.truncateIndex !== -1) {
+                displayValStr = displayValStr.substring(0, override.truncateIndex + 1);
+              }
+              const multStr = m.data.mult || "";
+              const expStr = m.data.exp || "";
+
+              // Helper to allocate matches based on string segment
+              const allocateMatches = (str, isEnabled = true) => {
+                return str.split('').map(char => {
+                  // Sync regex: standard digits + superscripts
+                  if (isEnabled && /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(char)) {
+                    const bIdx = tempBank.indexOf(char);
+                    if (bIdx !== -1) {
+                      tempBank.splice(bIdx, 1);
+                      return true;
+                    }
+                  }
+                  return false;
+                });
+              };
+
+              // CLEAN PRIORITY ALLOCATION
+              const isDim = !!override.isDimensioned; // Helper boolean
+
+              if (isDim && override.isOrganized) {
+                matchedState.dim = allocateMatches(dimStr, true);
+                matchedState.exp = allocateMatches(expStr);
+                matchedState.mult = allocateMatches(multStr);
+                matchedState.val = allocateMatches(displayValStr);
+              } else if (isDim) {
+                matchedState.dim = allocateMatches(dimStr, true);
+                matchedState.val = allocateMatches(displayValStr);
+                matchedState.mult = allocateMatches(multStr);
+                matchedState.exp = allocateMatches(expStr);
+              } else if (override.isOrganized) {
+                matchedState.exp = allocateMatches(expStr);
+                matchedState.mult = allocateMatches(multStr);
+                matchedState.val = allocateMatches(displayValStr);
+                matchedState.dim = allocateMatches(dimStr, false); // Force false
+              } else {
+                matchedState.val = allocateMatches(displayValStr);
+                matchedState.mult = allocateMatches(multStr);
+                matchedState.exp = allocateMatches(expStr);
+                matchedState.dim = allocateMatches(dimStr, false); // Force false
+              }
+
+              let hasValMatches = matchedState.val.includes(true);
+              let hasMultMatches = matchedState.mult.includes(true) || matchedState.exp.includes(true);
+
+              const renderDigits = (str, segmentType) => {
+                if (!str) return null;
+                
+                let displayStr = segmentType === 'val' ? displayValStr : str;
+
+                return displayStr.split('').map((char, idx) => {
+                  const isDigit = /[0-9]/.test(char);
+                  let color = 'rgba(255,255,255,0.15)'; 
+                  
+                  if (isDigit) {
+                    if (matchedState[segmentType][idx]) color = '#ffffff'; // Match found
+                  } else {
+                    color = '#ffffff'; // Non-digits (., -) are always rendered white
+                  }
+                  return <span key={idx} style={{ color, transition: 'all 0.2s' }}>{char}</span>;
+                });
+              };
+
+              const renderUnit = (unitStr) => {
+                if (!unitStr) return null;
+                let dimIdx = 0;
+                const digitRegex = /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]/;
+
+                return unitStr.split('').map((char, idx) => {
+                  if (digitRegex.test(char)) {
+                    // If isDimensioned was false, matchedState.dim[dimIdx] will be undefined/false
+                    const isMatched = matchedState.dim[dimIdx];
+                    dimIdx++;
+                    const color = isMatched ? '#ffffff' : 'rgba(255,255,255,0.15)';
+                    return <span key={`unit-${idx}`} style={{ color, transition: 'all 0.2s' }}>{char}</span>;
+                  }
+                  return <span key={`unit-${idx}`} style={{ color: 'rgba(255,255,255,0.4)' }}>{char}</span>;
+                });
+              };
+
+              return (
+                <div key={i} className={`constant-card ${isPerfect ? 'perfect-match' : ''} ${isElevated ? 'elevated' : ''}`}
+                  style={{
+                    borderColor: isPerfect ? m.dominantColor : undefined,
+                    boxShadow: isPerfect ? `0 0 15px ${m.dominantColor}40` : undefined,
+                    backgroundColor: isPerfect ? undefined : (m.percent > 0 ? `${m.dominantColor}15` : undefined),
+                    backgroundImage: isPerfect ? `linear-gradient(90deg, ${m.dominantColor}15 0%, ${m.dominantColor}40 50%, ${m.dominantColor}15 100%)` : 'none'
+                  }}>
+                  <div className="card-header">
+                    <div className="card-content">
+                      {parentSetName && <div className="set-badge">{parentSetName.replace(/_/g, ' ')}</div>}
+                      <span className="symbol-text">{m.symbol}</span>
+                    </div>
+                    <div className="action-stack">
+                      <span style={{ fontSize: '0.8rem', color: isPerfect ? '#fff' : m.dominantColor, fontWeight: 'bold' }}>
+                        {m.percent.toFixed(1)}% {isPerfect && '★'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="value-display">
+                    {renderDigits(m.data.val, 'val')}
+                    {m.data.mult && (
+                      <>
+                        <span style={{ color: (!override.isOrganized || hasValMatches || hasMultMatches) ? 'white' : 'rgba(255,255,255,0.15)' }}>{" × "}</span>
+                        <span style={{ position: 'relative' }}>
+                          {renderDigits(m.data.mult, 'mult')}
+                          <sup style={{ fontSize: '0.75rem', marginLeft: '2px' }}>
+                            <span style={{ color: 'rgba(255,255,255,0.15)' }}>{m.data.mag}</span>
+                            {renderDigits(m.data.exp, 'exp')}
+                          </sup>
+                        </span>
+                      </>
+                    )}
+                    <span className="unit-text">{renderUnit(m.data.unit)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 export default GameComponent;

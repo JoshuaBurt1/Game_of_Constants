@@ -52,7 +52,7 @@
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 20px;
+  padding-bottom: 5px;
   scrollbar-width: thin;
   scrollbar-color: #444 transparent;
 }
@@ -102,11 +102,6 @@
   border-radius: 4px;
   font-size: 1.1rem;
   border: none; /* No border for factors or powers */
-}
-
-/* MP sequence blue only if orthogonal */
-.grid-token.mp-orthogonal {
-  background-color: #3b82f6 !important;
 }
 
 .grid-token.symbol {
@@ -277,7 +272,7 @@
 .perm-click-btn { padding: 6px 12px; background: #10b981; border: none; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: white; cursor: pointer; }
 
 /* --- Footer & Buttons --- */
-.action-footer { margin-top: 40px; display: flex; gap: 15px; border-top: 1px solid #333; padding-top: 20px; }
+.action-footer { display: flex; gap: 15px; }
 .reset-btn { background-color: #2a2a2a; color: #888; border: 1px solid #444; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: all 0.2s; }
 .reset-btn:hover { background-color: #333; color: #eee; }
 .submit-btn { margin-left: auto; }
@@ -293,58 +288,172 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
+/* --- Grid & Token Logic --- */
+.grid-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Reduced from 50px for tighter spacing */
+  width: fit-content;
+  min-width: max-content;
+}
+
+/* Default: Hide the extra words on mobile */
+.desktop-text {
+  display: none;
+}
+
+/* Tablet/Desktop: Show the full labels */
+@media (min-width: 769px) {
+  .desktop-text {
+    display: inline;
+  }
+  
+  .nav-header {
+    display: none !important; /* Hide the top version on desktop */
+  }
+  
+  .action-footer:not(.nav-header) {
+    display: flex; /* Show the bottom version on desktop */
+    margin-top: 40px;
+    border-top: 1px solid #333;
+    padding-top: 20px;
+  }
+}
 
 /* --- MOBILE ADAPTATION --- */
 @media (max-width: 768px) {
-  /* Reclaim screen real estate */
-  .game-screen-container {
-    padding: 20px 10px; 
+  /* 1. Unlock the global scroll for mobile */
+  :global(body), :global(#root) {
+    overflow-y: auto !important;
+    height: auto !important;
   }
 
-  /* Stack the columns cleanly */
+  .game-screen-container {
+    padding: 0px 10px 15px 10px; /* Reduced top padding to 0 so header sits flush */
+    height: auto;
+    overflow-y: visible; 
+    display: block; 
+  }
+
+  /* 2. Stack and Super-Compress Grids */
   .game-content-max-width {
     flex-direction: column; 
-    gap: 30px; 
+    gap: 10px;
     padding: 0;
   }
 
-  .left-scroll-column {
-    overflow-y: visible; 
-    width: 100%; /* Ensure it spans the mobile screen exactly */
+  .action-footer:not(.nav-header) {
+    display: none !important; 
   }
 
-  /* FIX: Override the 420px hard limit */
+  /* --- Refined Nav Header Bar --- */
+  .nav-header {
+    display: grid !important;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    
+    /* Solid Bar Appearance */
+    background-color: #222 !important; /* Slightly lighter than background to define the bar */
+    margin: 0 -10px 15px -10px; /* Flush to screen edges */
+    padding: 8px 6px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    border-bottom: 1px solid #333;
+  }
+
+  /* Integrated Header Buttons */
+  .nav-header .reset-btn {
+    background-color: transparent !important; /* Blends into the bar */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Softer, integrated borders */
+    padding: 10px 2px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    color: #bbb;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Primary Action Highlight */
+  .nav-header .submit-btn {
+    background-color: rgba(59, 130, 246, 0.2) !important; /* Subtle blue tint */
+    color: #60a5fa !important;
+    border-color: rgba(59, 130, 246, 0.3) !important;
+  }
+
+  /* 3. Typography & Grid Spacing */
+  .game-title-container {
+    margin-bottom: 0px;
+  }
+
+  .game-main-title {
+    font-size: 1.6rem;
+    margin-bottom: 5px;
+    text-align: center; /* Better balance with the bar */
+  }
+
+  .grid-section-label {
+    margin-top: 5px;   
+    margin-bottom: 5px; 
+  }
+
+  .grid-stack {
+    gap: 0px !important; 
+  }
+
+  .left-scroll-column {
+    width: 100%; 
+  }
+
+  /* 4. Panel Fixes */
   .sticky-right-panel {
     width: 100%; 
     box-sizing: border-box;
     position: relative; 
     height: auto; 
     top: 0;
-    padding: 15px;
+    padding: 15px 5px; /* Increased padding slightly for better tap targets */
   }
 
-  /* Prevent swatches from stretching the screen */
+  .control-btn-group {
+    margin-bottom: 7px;
+  }
+
   .palette-container {
-    flex-wrap: wrap; 
+    flex-wrap: wrap;
+    justify-content: center; 
+    gap: 6px;
+    padding: 10px;
+    margin-bottom: 7px;
   }
 
-  /* Button Grid Layout for Mobile */
-  .action-footer {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Two equal columns */
-    gap: 10px;
-    margin-top: 30px;
-    padding-top: 15px;
+  /* --- Compact Constant Cards (Mobile Only) --- */
+  .constant-card {
+    padding: 10px 12px !important; 
+    margin-bottom: 8px !important;
+    border-radius: 6px;
   }
 
-  .action-footer .reset-btn {
-    width: 100%;
-    margin: 0;
-    padding: 12px 8px; /* Larger touch targets for mobile */
+  .symbol-text {
+    font-size: 1rem !important;
   }
 
-  .action-footer .submit-btn {
-    margin-left: 0; /* Remove the desktop auto-margin */
-    grid-column: span 2; /* Make the submit button span the whole bottom row */
+  .value-display {
+    font-size: 0.85rem !important;
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+
+  .set-badge {
+    font-size: 0.6rem;
+  }
+
+  .unit-text {
+    font-size: 0.75rem;
   }
 }
