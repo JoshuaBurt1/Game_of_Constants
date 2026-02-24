@@ -19,9 +19,28 @@
 .hs-header {
   display: flex;
   align-items: center;
+  justify-content: center;
   padding-bottom: 15px;
   border-bottom: 1px solid #333;
   margin-bottom: 10px;
+  width: 100%;
+  position: relative;
+}
+
+.hs-menu-title {
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  flex: 1; 
+  text-align: center;
+  padding-left: 140px; 
+}
+
+.hs-menu-btn {
+  width: auto;
+  min-width: 140px; 
+  margin: 0;
 }
 
 .hs-table-scroll {
@@ -288,9 +307,21 @@
 
   .hs-header {
     flex-direction: column;
-    gap: 15px;
-    padding: 0 15px 15px 15px;
-    border-bottom: 1px solid #333;
+    gap: 10px;
+    padding: 15px;
+    align-items: center;
+  }
+
+  .hs-menu-title {
+    padding-left: 0;
+    text-align: center;
+    width: 100%;
+  }
+
+  .hs-menu-btn {
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
   }
 
   /* 2. Seamless Scroll Area */

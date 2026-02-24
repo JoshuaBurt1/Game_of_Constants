@@ -13,9 +13,9 @@ export default defineConfig({
         name: 'Game of Constants',
         short_name: 'Constants',
         description: 'An addictive logic and math based challenge',
-        theme_color: '#000000',      // Matches your app's header/theme
-        background_color: '#000000', // Color of the splash screen
-        display: 'standalone',       // CRITICAL: Makes it look like an app
+        theme_color: '#000000',
+        background_color: '#000000',
+        display: 'standalone',
         start_url: '/',
         orientation: 'portrait',
         icons: [

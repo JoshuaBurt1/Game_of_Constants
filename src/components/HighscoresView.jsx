@@ -68,12 +68,12 @@ function HighscoresView({ onBack }) {
       {loading ? <LoadingBox /> : (
         <div className="hs-main-card">
           <div className="hs-header">
-              <h2 className="hs-menu-title" style={{ flex: 1, textAlign: 'left', margin: 0, paddingLeft: '10px' }}>
-                  High Scores
-              </h2>
-              <button onClick={onBack} className="hs-menu-btn">
-                  Home
-              </button>
+            <h2 className="hs-menu-title">
+              High Scores
+            </h2>
+            <button onClick={onBack} className="hs-menu-btn">
+              Home
+            </button>
           </div>
 
           <div className="hs-table-scroll">

@@ -138,6 +138,21 @@ body, #root {
   border: 1px solid #444;
 }
 
+.install-btn {
+  background: rgba(16, 185, 129, 0.1) !important; /* Subtle Green */
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+  color: #10b981 !important;
+  font-weight: bold;
+  margin-bottom: 12px !important;
+}
+
+.home-menu-divider {
+  width: 85%; /* Match button width */
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 15px 0;
+}
+
 /* --- High Scores --- */
 .hs-menu-title {
   margin-bottom: 20px;
