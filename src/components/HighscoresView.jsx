@@ -40,7 +40,7 @@ function HighscoresView({ onBack }) {
   useEffect(() => {
     const fetchScores = async () => {
       try {
-        const q = query(collection(db, "highscores"), orderBy("timestamp", "desc"), limit(68));
+        const q = query(collection(db, "constants_highscores"), orderBy("timestamp", "desc"), limit(68));
         const querySnapshot = await getDocs(q);
         const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         

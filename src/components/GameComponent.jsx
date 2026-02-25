@@ -585,7 +585,7 @@ const GameComponent = ({ settings, setStep }) => {
         equationMembers: originalSet ? originalSet.members : []
       };
 
-      await addDoc(collection(db, "highscores"), highscoreData);
+      await addDoc(collection(db, "constants_highscores"), highscoreData);
       alert("Score submitted successfully!");
       setStep('TOPIC');
     } catch (e) {
