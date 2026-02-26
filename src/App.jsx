@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore'; // Added for real-time gems
+import { auth, db } from './firebase'; 
+import SignInView from './components/SignInView';
 import GameComponent from './components/GameComponent';
 import HighscoresView from './components/HighscoresView';
 import Instructions from './components/Instructions';
@@ -6,35 +10,66 @@ import backgroundImage from './assets/background_home.png';
 import './App.css';
 
 export default function App() {
-  const [step, setStep] = useState('TOPIC'); 
   const [settings, setSettings] = useState({ topic: '', word: '', language: '', gridTypes: [] });
+  const [user, setUser] = useState(null);
+  const [gems, setGems] = useState(0); // State for the 14 gems
+  const [isGuest, setIsGuest] = useState(false);
+  const [step, setStep] = useState('AUTH'); 
+
+  // --- Auth & Firestore Sync ---
+  useEffect(() => {
+    let unsubscribeGems = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        setStep('TOPIC');
+
+        // Listen for gem updates in Firestore
+        const userRef = doc(db, 'users', currentUser.uid);
+        unsubscribeGems = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setGems(docSnap.data().gems || 0);
+          }
+        });
+      } else {
+        setUser(null);
+        setGems(0);
+        if (unsubscribeGems) unsubscribeGems();
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeGems) unsubscribeGems();
+    };
+  }, []);
+
+  const handleSignOut = () => {
+    signOut(auth);
+    setUser(null);
+    setIsGuest(false);
+    setStep('AUTH');
+  };
   
   // --- PWA Install Logic ---
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
 
   useEffect(() => {
-    // Check if the device is mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
     const handler = (e) => {
-      // 1. Only show if we are on a mobile device
-      // 2. browser fires this only IF app is NOT installed
       if (isMobile) {
         e.preventDefault();
         setDeferredPrompt(e);
         setShowInstallBtn(true);
       }
     };
-
     window.addEventListener('beforeinstallprompt', handler);
-
-    // If the app is successfully installed, hide the button
     window.addEventListener('appinstalled', () => {
       setShowInstallBtn(false);
       setDeferredPrompt(null);
     });
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', () => setShowInstallBtn(false));
@@ -44,10 +79,7 @@ export default function App() {
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    }
+    await deferredPrompt.userChoice;
     setDeferredPrompt(null);
     setShowInstallBtn(false);
   };
@@ -57,9 +89,7 @@ export default function App() {
     const loader = document.getElementById('initial-loader');
     if (loader) {
       loader.style.opacity = '0';
-      const timer = setTimeout(() => {
-        loader.remove();
-      }, 500);
+      const timer = setTimeout(() => { loader.remove(); }, 500);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -72,11 +102,21 @@ export default function App() {
   };
 
   const renderStep = () => {
+    if (step === 'AUTH') {
+      return (
+        <SignInView 
+          onAuthSuccess={(u) => { setUser(u); setStep('TOPIC'); }} 
+          onGuestSignage={() => { setIsGuest(true); setStep('TOPIC'); }} 
+        />
+      );
+    }
     if (step === 'HIGHSCORES') return <HighscoresView onBack={() => setStep('TOPIC')} />;
     if (step === 'INSTRUCTIONS') return <Instructions onBack={() => setStep('TOPIC')} />;
 
+    // Shared wrapper for Gems and Title
     const MenuWrapper = ({ title, children }) => (
       <div className="home-menu-container">
+        {!isGuest && <div className="home-gem-display">💎 {gems}</div>}
         <h2 className="home-menu-title">{title}</h2>
         {children}
       </div>
@@ -84,7 +124,10 @@ export default function App() {
 
     if (step === 'TOPIC') return (
       <div className="home-menu-container">
-        {/* Only shows on mobile + if not installed */}
+        {!isGuest && <div className="home-gem-display">💎 {gems}</div>}
+        
+        <p className="user-welcome">Welcome, {isGuest ? 'Guest' : user?.displayName}</p>
+        
         {showInstallBtn && (
           <button className="home-menu-btn install-btn" onClick={handleInstallClick}>
             📲 Install App
@@ -106,6 +149,10 @@ export default function App() {
             {t}
           </button>
         ))}
+
+        <button className="home-menu-btn signout-btn" onClick={handleSignOut}>
+          Sign Out
+        </button>
       </div>
     );
 

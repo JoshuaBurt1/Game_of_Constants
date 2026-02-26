@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Replace the below with your actual Firebase project configuration
@@ -16,4 +17,5 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Export the database instance
+export const auth = getAuth(app);
 export const db = getFirestore(app);
