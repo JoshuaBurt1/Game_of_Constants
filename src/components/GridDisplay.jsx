@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 
 const GridDisplay = ({ 
   gridType, tokens, selections, setSelections, activeColor, 
@@ -6,6 +6,9 @@ const GridDisplay = ({
   boxSelections, setBoxSelections, SYMBOLS 
 }) => {
   
+  // Track the last item interacted with during a single drag to avoid flip-flop toggling
+  const lastInteractedId = useRef(null);
+
   const expandedData = useMemo(() => {
     if (!tokens) return [];
     let result = [];
@@ -38,7 +41,12 @@ const GridDisplay = ({
   }, [expandedData]);
 
   const handleInteraction = (item) => {
-    if (item.isSymbol || item.token === " ") return;
+    if (!item || item.isSymbol || item.token === " ") return;
+    
+    // Safety check: Don't toggle the same cell twice in one drag session
+    if (lastInteractedId.current === item.stableId) return;
+    lastInteractedId.current = item.stableId;
+
     const binaryKey = `${gridType}-${item.baseIdx}`;
 
     if (activeColor === 'BIN') {
@@ -69,35 +77,67 @@ const GridDisplay = ({
     });
   };
 
+  // --- TOUCH HANDLERS ---
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+
+    // Identify the element currently under the user's finger
+    const touch = e.touches[0];
+    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+
+    // If the element is one of our grid tokens, extract data and interact
+    if (targetEl && targetEl.dataset.stableId) {
+      const itemData = {
+        stableId: targetEl.dataset.stableId,
+        baseIdx: parseInt(targetEl.dataset.baseIdx),
+        subIdx: parseInt(targetEl.dataset.subIdx),
+        isBinary: targetEl.dataset.isBinary === 'true',
+        token: targetEl.innerText
+      };
+      handleInteraction(itemData);
+    }
+  };
+
+  const stopDragging = () => {
+    setIsDragging(false);
+    lastInteractedId.current = null;
+  };
+
   return (
-    <div className="grid-root">
+    <div 
+      className="grid-root"
+      onMouseUp={stopDragging}
+      onMouseLeave={stopDragging}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={stopDragging}
+      onTouchCancel={stopDragging}
+    >
       {rows.map((row, rIdx) => (
         <div key={rIdx} className="grid-row">
           {row.map((item, i) => {
             const isSpacer = item.token === " ";
             const isSymbolToken = SYMBOLS.includes(item.token) || item.isSymbol;
-            
-            // LOGIC: Use "hidden" to keep the space but hide the boxes/operators
-            // Row 3 (the 4th line) uses the spacers to shift the number over
             const shouldHide = rIdx === 3 && (isSpacer || isSymbolToken);
-            
             const isSymStyle = isSymbolToken && !isSpacer;
             const highlightColor = (!isSymStyle && !shouldHide) ? (selections[gridType] || {})[item.stableId] : null;
             const boxKey = `${gridType}-${item.baseIdx}-${item.subIdx}`;
             const isBoxed = boxSelections[boxKey] !== undefined && boxSelections[boxKey] !== null;
 
-            const classNames = [
-              'grid-token',
-              item.isBinary ? 'binary' : 'decimal',
-              isSymStyle ? 'symbol' : 'interactive',
-              shouldHide ? 'hidden' : '', // This keeps the element in the DOM for spacing
-              isBoxed ? 'boxed' : '',
-            ].join(' ');
-
             return (
               <div
                 key={`${item.stableId}-${i}`}
-                className={classNames}
+                // Data attributes allow handleTouchMove to identify the cell
+                data-stable-id={item.stableId}
+                data-base-idx={item.baseIdx}
+                data-sub-idx={item.subIdx}
+                data-is-binary={item.isBinary}
+                className={[
+                  'grid-token',
+                  item.isBinary ? 'binary' : 'decimal',
+                  isSymStyle ? 'symbol' : 'interactive',
+                  shouldHide ? 'hidden' : '',
+                  isBoxed ? 'boxed' : '',
+                ].join(' ')}
                 onMouseDown={() => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
                     setIsDragging(true);
@@ -109,9 +149,17 @@ const GridDisplay = ({
                     handleInteraction(item);
                   }
                 }}
+                onTouchStart={(e) => {
+                  if (!isSymStyle && !shouldHide && !isSpacer) {
+                    // Prevent page scrolling while dragging on the grid
+                    if (e.cancelable) e.preventDefault();
+                    setIsDragging(true);
+                    handleInteraction(item);
+                  }
+                }}
                 style={{ 
                   backgroundColor: highlightColor || undefined,
-                  visibility: shouldHide ? 'hidden' : 'visible' // Ensure it's totally invisible but takes space
+                  visibility: shouldHide ? 'hidden' : 'visible'
                 }}
               >
                 {item.token}

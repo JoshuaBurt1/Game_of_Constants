@@ -39,7 +39,6 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
     setExpandedGrids(newSet);
   };
 
-  // Remove the setTimeout logic from your fetchScores function...
   useEffect(() => {
     const fetchScores = async () => {
       try {
@@ -55,6 +54,17 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
         });
 
         setScores(sortedData);
+
+        // Logic for panning and gems
+        if (newSubmissionId) {
+          setTimeout(() => {
+            if (newRowRef.current) {
+              newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setAnimateGems(true);
+            }
+          }, 800); // Small delay to ensure table is rendered
+        }
+
       } catch (err) {
         console.error("Error fetching scores:", err);
       } finally {
@@ -63,22 +73,6 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
     };
     fetchScores();
   }, [newSubmissionId]);
-
-  // --- NEW: Dedicated effect for scrolling and animating ---
-  useEffect(() => {
-    // Only run if loading is done, we have a new ID, and the ref exists
-    if (!loading && newSubmissionId && newRowRef.current) {
-      // 1. Scroll the element into view
-      newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      
-      // 2. Wait for the scroll to finish (~500ms), then trigger the gem animation
-      const animationTimer = setTimeout(() => {
-        setAnimateGems(true);
-      }, 500); 
-
-      return () => clearTimeout(animationTimer);
-    }
-  }, [loading, newSubmissionId, scores]);
 
   return (
     <div className="hs-view-container">
@@ -388,10 +382,31 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
                       </td>
                       <td className="hs-cell" style={{ ...cellStyle, fontSize: '0.65rem', color: '#666', position: 'relative' }}>
                         <div className="hs-date-user-wrapper">
-                          <div className="hs-timestamp">
-                            {s.timestamp ? s.timestamp.toDate().toLocaleDateString() : 'Recent'}
+                          <div className="hs-timestamp" style={{ lineHeight: '1.2' }}>
+                            {s.timestamp ? (
+                              <>
+                                <div>
+                                  {s.timestamp.toDate().toLocaleDateString([], { 
+                                    month: '2-digit', 
+                                    day: '2-digit', 
+                                    year: '2-digit' 
+                                  })}
+                                </div>
+                                <div>
+                                  {s.timestamp.toDate().toLocaleTimeString([], { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit', 
+                                    second: '2-digit',
+                                    hour12: false 
+                                  })}
+                                </div>
+                              </>
+                            ) : (
+                              'Recent'
+                            )}
                           </div>
-                          <div className="hs-display_name">
+                          
+                          <div className="hs-display_name" style={{ fontWeight: 'bold', marginTop: '2px' }}>
                             {s.display_name || "Anonymous"}
                           </div>
                           

@@ -488,4 +488,9 @@
   .hs-unused-list {
     max-width: 100%;
   }
+
+  .hs-new-row {
+    background-color: rgba(16, 185, 129, 0.15); /* Soft emerald green */
+    transition: background-color 2s ease-in-out;
+  }
 }
