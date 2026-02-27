@@ -30,6 +30,7 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
   const [loading, setLoading] = useState(true);
   const [expandedGrids, setExpandedGrids] = useState(new Set());
   const [animateGems, setAnimateGems] = useState(false);
+  const scrollContainerRef = useRef(null);
   const newRowRef = useRef(null);
 
   const toggleGrid = (id) => {
@@ -58,11 +59,21 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
         // Logic for panning and gems
         if (newSubmissionId) {
           setTimeout(() => {
-            if (newRowRef.current) {
-              newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (newRowRef.current && scrollContainerRef.current) {
+              const container = scrollContainerRef.current;
+              const row = newRowRef.current;
+
+              // Calculate the position to center the row ONLY inside the container
+              const scrollPos = row.offsetTop - (container.offsetHeight / 2) + (row.offsetHeight / 2);
+
+              container.scrollTo({
+                top: scrollPos,
+                behavior: 'smooth'
+              });
+              
               setAnimateGems(true);
             }
-          }, 800); // Small delay to ensure table is rendered
+          }, 800);
         }
 
       } catch (err) {
@@ -87,7 +98,7 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
             </button>
           </div>
 
-          <div className="hs-table-scroll">
+          <div className="hs-table-scroll" ref={scrollContainerRef}>
             <table className="hs-table">
               <thead>
                 <tr>

@@ -100,6 +100,11 @@ export default function App() {
     }
   }, []);
 
+  // Fixes the "cutoff header" by resetting scroll when switching views
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
+
   const toggleGridType = (type) => {
     setSettings(prev => ({
       ...prev,

@@ -90,10 +90,10 @@
   background-color: #2a2a2a;
   color: white;
   transition: background-color 0.1s ease;
-  -webkit-tap-highlight-color: transparent; /* Removes the light blue square */
-  -webkit-touch-callout: none;              /* Prevents callout menu on long-press */
-  user-select: none;                        /* Prevents text selection */
-  touch-action: none;                       /* Prevents scrolling/zooming on the grid */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  touch-action: none;
 }
 
 .grid-token.binary {
