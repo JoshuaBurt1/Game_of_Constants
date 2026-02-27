@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 export default function SignInView({ onAuthSuccess, onGuestSignage }) {
@@ -16,14 +16,26 @@ export default function SignInView({ onAuthSuccess, onGuestSignage }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
 
-  const syncUserProfile = async (user, displayName) => {
-    if (displayName) {
-      await updateProfile(user, { displayName: displayName });
+  const syncUserProfile = async (user, providedName) => {
+    const userRef = doc(db, 'users', user.uid);
+    let finalName = providedName;
+
+    // If no name was provided (Login mode), try to get it from Firestore
+    if (!finalName) {
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        finalName = userSnap.data().display_name;
+      }
     }
 
-    const userRef = doc(db, 'users', user.uid);
+    // Update the Auth Profile so user.displayName works immediately in the UI
+    if (finalName && finalName !== user.displayName) {
+      await updateProfile(user, { displayName: finalName });
+    }
+
+    // Sync to Firestore
     await setDoc(userRef, {
-      display_name: displayName || user.displayName || 'Player',
+      display_name: finalName || user.displayName || 'Player',
       last_login: serverTimestamp(),
       gems: increment(0),
     }, { merge: true });
