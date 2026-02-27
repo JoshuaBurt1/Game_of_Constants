@@ -7,7 +7,6 @@ const GridDisplay = ({
 }) => {
   
   const lastInteractedId = useRef(null);
-  // Track touch metadata to differentiate Tap vs Drag
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
 
   const expandedData = useMemo(() => {
@@ -44,19 +43,21 @@ const GridDisplay = ({
   const handleInteraction = (item) => {
     if (!item || item.isSymbol || item.token === " ") return;
     
-    // Safety check: Don't toggle the same cell twice in one continuous movement
+    // Safety check: Don't flip-flop the same cell during a single drag movement
     if (lastInteractedId.current === item.stableId) return;
     lastInteractedId.current = item.stableId;
 
     const binaryKey = `${gridType}-${item.baseIdx}`;
 
+    // BIN mode: Set to binary if it isn't already
     if (activeColor === 'BIN') {
-      if (binaryMaps[binaryKey] !== true) {
+      if (!binaryMaps[binaryKey]) {
         setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
       }
       return;
     }
     
+    // DEC mode: Set to decimal OR toggle boxes
     if (activeColor === 'DEC') {
       if (item.isBinary) {
         const boxKey = `${gridType}-${item.baseIdx}-${item.subIdx}`;
@@ -71,6 +72,7 @@ const GridDisplay = ({
       return;
     }
 
+    // Coloring mode: Standard toggle
     setSelections(prev => {
       const newMap = { ...prev };
       const currentGrid = { ...(newMap[gridType] || {}) };
@@ -80,19 +82,17 @@ const GridDisplay = ({
     });
   };
 
-  // --- TOUCH LOGIC ---
+  // --- MOBILE TOUCH HANDLING ---
 
-  const onTouchStart = (e, item) => {
+  const handleTouchStart = (e, item) => {
     const touch = e.touches[0];
-    // Record starting position and time
     touchStartRef.current = {
       x: touch.clientX,
       y: touch.clientY,
-      time: Date.now(),
-      id: item.stableId
+      time: Date.now()
     };
     
-    lastInteractedId.current = null; // Reset to allow immediate interaction
+    lastInteractedId.current = null; // Prepare for fresh interaction
     setIsDragging(true);
     handleInteraction(item);
   };
@@ -103,6 +103,7 @@ const GridDisplay = ({
     const touch = e.touches[0];
     const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
 
+    // Ensure we are hovering over an actual token cell
     if (targetEl && targetEl.dataset.stableId) {
       const itemData = {
         stableId: targetEl.dataset.stableId,
@@ -115,19 +116,7 @@ const GridDisplay = ({
     }
   };
 
-  const onTouchEnd = (e) => {
-    const touch = e.changedTouches[0];
-    const duration = Date.now() - touchStartRef.current.time;
-    const distX = Math.abs(touch.clientX - touchStartRef.current.x);
-    const distY = Math.abs(touch.clientY - touchStartRef.current.y);
-
-    // If it was a short duration and minimal movement, treat it as a clean "Tap"
-    if (duration < 250 && distX < 10 && distY < 10) {
-      // The interaction already fired on TouchStart, so we just clean up.
-      // If you find taps are "missing", you could re-trigger handleInteraction 
-      // here for the element at document.elementFromPoint.
-    }
-
+  const handleTouchEnd = () => {
     setIsDragging(false);
     lastInteractedId.current = null;
   };
@@ -135,11 +124,11 @@ const GridDisplay = ({
   return (
     <div 
       className="grid-root"
-      onMouseUp={stopDragging} 
-      onMouseLeave={stopDragging}
+      onMouseUp={handleTouchEnd}
+      onMouseLeave={handleTouchEnd}
       onTouchMove={handleTouchMove}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={onTouchEnd}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {rows.map((row, rIdx) => (
         <div key={rIdx} className="grid-row">
@@ -166,7 +155,7 @@ const GridDisplay = ({
                   shouldHide ? 'hidden' : '',
                   isBoxed ? 'boxed' : '',
                 ].join(' ')}
-                // --- Desktop ---
+                // --- Desktop Mouse ---
                 onMouseDown={() => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
                     setIsDragging(true);
@@ -178,19 +167,19 @@ const GridDisplay = ({
                     handleInteraction(item);
                   }
                 }}
-                // --- Mobile ---
+                // --- Mobile Touch ---
                 onTouchStart={(e) => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
-                    // Prevent context menus and scrolling
-                    if (e.cancelable) e.preventDefault(); 
-                    onTouchStart(e, item);
+                    // Critical: Prevents the "magnifying glass" and scroll while painting
+                    if (e.cancelable) e.preventDefault();
+                    handleTouchStart(e, item);
                   }
                 }}
                 style={{ 
                   backgroundColor: highlightColor || undefined,
                   visibility: shouldHide ? 'hidden' : 'visible',
-                  touchAction: 'none',
-                  userSelect: 'none',
+                  touchAction: 'none', // Prevents browser scroll/zoom gestures
+                  userSelect: 'none',  // Prevents long-press copy/paste UI
                   WebkitUserSelect: 'none'
                 }}
               >
@@ -203,7 +192,5 @@ const GridDisplay = ({
     </div>
   );
 };
-
-const stopDragging = () => { /* Placeholder for prop-level or global cleanup */ };
 
 export default GridDisplay;
