@@ -42,15 +42,15 @@ const GridDisplay = ({
   const handleInteraction = (item) => {
     if (!item || item.isSymbol || item.token === " ") return;
     
-    // Prevent double-triggering the same cell in one drag movement
+    // Safety check: Don't toggle the same cell twice in one continuous drag
     if (lastInteractedId.current === item.stableId) return;
     lastInteractedId.current = item.stableId;
 
     const binaryKey = `${gridType}-${item.baseIdx}`;
 
     if (activeColor === 'BIN') {
-      // Only update if not already binary to prevent render loops during drag
-      if (!binaryMaps[binaryKey]) {
+      // Prevent redundant state updates during a drag
+      if (binaryMaps[binaryKey] !== true) {
         setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
       }
       return;
@@ -64,16 +64,13 @@ const GridDisplay = ({
           next[boxKey] ? delete next[boxKey] : (next[boxKey] = item.token);
           return next;
         });
-      } else {
-        // Only update if currently binary
-        if (binaryMaps[binaryKey] !== false) {
-          setBinaryMaps(prev => ({ ...prev, [binaryKey]: false }));
-        }
+      } else if (binaryMaps[binaryKey] !== false) {
+        setBinaryMaps(prev => ({ ...prev, [binaryKey]: false }));
       }
       return;
     }
 
-    // Coloring Logic
+    // Coloring logic
     setSelections(prev => {
       const newMap = { ...prev };
       const currentGrid = { ...(newMap[gridType] || {}) };
@@ -83,6 +80,7 @@ const GridDisplay = ({
     });
   };
 
+  // --- TOUCH HANDLERS ---
   const handleTouchMove = (e) => {
     if (!isDragging) return;
 
@@ -111,9 +109,9 @@ const GridDisplay = ({
       className="grid-root"
       onMouseUp={stopDragging}
       onMouseLeave={stopDragging}
-      onTouchMove={handleTouchMove}
       onTouchEnd={stopDragging}
       onTouchCancel={stopDragging}
+      onTouchMove={handleTouchMove}
     >
       {rows.map((row, rIdx) => (
         <div key={rIdx} className="grid-row">
@@ -140,8 +138,8 @@ const GridDisplay = ({
                   shouldHide ? 'hidden' : '',
                   isBoxed ? 'boxed' : '',
                 ].join(' ')}
-                // --- Desktop Mouse ---
-                onMouseDown={(e) => {
+                // --- MOUSE ---
+                onMouseDown={() => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
                     setIsDragging(true);
                     handleInteraction(item);
@@ -152,20 +150,22 @@ const GridDisplay = ({
                     handleInteraction(item);
                   }
                 }}
-                // --- Mobile Touch ---
-                onTouchStart={(e) => {
+                // --- TOUCH ---
+                onTouchStart={() => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
-                    // Start drag and handle immediate interaction (tap)
+                    // Reset ref immediately to ensure the tap registers even if 
+                    // the last interaction was on this same ID
+                    lastInteractedId.current = null; 
                     setIsDragging(true);
                     handleInteraction(item);
-                    // Prevent default only if we want to block scrolling/zoom during interaction
-                    if (e.cancelable) e.preventDefault();
                   }
                 }}
                 style={{ 
                   backgroundColor: highlightColor || undefined,
                   visibility: shouldHide ? 'hidden' : 'visible',
-                  touchAction: 'none' // Critical: tells the browser not to handle swipes
+                  touchAction: 'none', // Prevents scrolling so dragging works
+                  userSelect: 'none',  // Prevents text selection popups on long press
+                  WebkitUserSelect: 'none'
                 }}
               >
                 {item.token}
