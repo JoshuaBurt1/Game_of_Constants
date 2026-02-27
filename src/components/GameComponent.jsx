@@ -17,7 +17,7 @@ import {
 import { getPermutations, getSquareShellData, getHexagonData } from '../utils/gridUtils';
 
 // --- GAME COMPONENT ---
-const GameComponent = ({ settings, setStep, user, userName }) => {
+const GameComponent = ({ settings, setStep, user, userName, onScoreSubmit }) => {
   const wordVal = ZODIAC_MAPS[settings.language][settings.word];
   const userRef = user ? doc(db, 'users', user.uid) : null;  
 
@@ -534,17 +534,9 @@ const GameComponent = ({ settings, setStep, user, userName }) => {
       // --- 4.5 NEW: Calculate Gems Earned ---
       let totalGems = 0;
       if (eqString !== "") {
-        const gemValues = {
-          "sigma": 10,
-          "gold": 15,
-          "gold2": 15,
-          "gold3": 15,
-          "blue_camel": 20,
-          "green_camel": 20
-        };
+        const gemValues = {"sigma": 10, "gold": 15, "gold2": 15, "gold3": 15, "blue_camel": 20, "green_camel": 20};
 
         // Iterating through badgeList handles multiples gracefully 
-        // (e.g., getting "gold" twice awards 30 gems)
         badgeList.forEach(badge => {
           if (gemValues[badge]) {
             totalGems += gemValues[badge];
@@ -603,9 +595,11 @@ const GameComponent = ({ settings, setStep, user, userName }) => {
         equationMembers: originalSet ? originalSet.members : []
       };
       
-      // --- NEW: Immediately update the user's gem count in Firebase ---
+      let newSubmissionId = null;
       if (user?.uid) {
-        await addDoc(collection(db, "constants_highscores"), highscoreData);
+        // 1. Capture the returned document reference to get the ID
+        const docRef = await addDoc(collection(db, "constants_highscores"), highscoreData);
+        newSubmissionId = docRef.id;
         
         // 2. Only update the user document if userRef exists
         if (totalGems > 0 && userRef) {
@@ -613,14 +607,16 @@ const GameComponent = ({ settings, setStep, user, userName }) => {
             gems: increment(totalGems)
           });
         }
-        alert("Score submitted successfully!");
       } else {
-        // Guest Logic: Just log it and skip Firebase to avoid crashes
         console.log("Guest mode: Score not saved to Firebase.");
       }
 
-      // 3. Always move the user to the next screen, regardless of guest status
-      setStep('HIGHSCORES');
+      // 3. Pass the new ID and gems up to App.jsx
+      if (onScoreSubmit) {
+        onScoreSubmit(newSubmissionId, totalGems);
+      } else {
+        setStep('HIGHSCORES');
+      }
 
     } catch (e) {
       console.error("Error adding document: ", e);

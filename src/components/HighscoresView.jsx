@@ -39,6 +39,7 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
     setExpandedGrids(newSet);
   };
 
+  // Remove the setTimeout logic from your fetchScores function...
   useEffect(() => {
     const fetchScores = async () => {
       try {
@@ -54,17 +55,6 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
         });
 
         setScores(sortedData);
-
-        // Logic for panning and gems
-        if (newSubmissionId) {
-          setTimeout(() => {
-            if (newRowRef.current) {
-              newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              setAnimateGems(true);
-            }
-          }, 800); // Small delay to ensure table is rendered
-        }
-
       } catch (err) {
         console.error("Error fetching scores:", err);
       } finally {
@@ -73,6 +63,22 @@ function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
     };
     fetchScores();
   }, [newSubmissionId]);
+
+  // --- NEW: Dedicated effect for scrolling and animating ---
+  useEffect(() => {
+    // Only run if loading is done, we have a new ID, and the ref exists
+    if (!loading && newSubmissionId && newRowRef.current) {
+      // 1. Scroll the element into view
+      newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // 2. Wait for the scroll to finish (~500ms), then trigger the gem animation
+      const animationTimer = setTimeout(() => {
+        setAnimateGems(true);
+      }, 500); 
+
+      return () => clearTimeout(animationTimer);
+    }
+  }, [loading, newSubmissionId, scores]);
 
   return (
     <div className="hs-view-container">

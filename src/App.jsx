@@ -12,9 +12,10 @@ import './App.css';
 export default function App() {
   const [settings, setSettings] = useState({ topic: '', word: '', language: '', gridTypes: [] });
   const [user, setUser] = useState(null);
-  const [gems, setGems] = useState(0); // State for the 14 gems
+  const [gems, setGems] = useState(0); 
   const [isGuest, setIsGuest] = useState(false);
   const [step, setStep] = useState('AUTH'); 
+  const [submissionData, setSubmissionData] = useState({ id: null, earnedGems: 0 });
 
   // --- Auth & Firestore Sync ---
   useEffect(() => {
@@ -106,6 +107,11 @@ export default function App() {
     }));
   };
 
+  const handleScoreSubmitted = (newSubmissionId, gemsEarned) => {
+    setSubmissionData({ id: newSubmissionId, earnedGems: gemsEarned });
+    setStep('HIGHSCORES');
+  };
+
   const renderStep = () => {
     if (step === 'AUTH') {
       return (
@@ -115,7 +121,19 @@ export default function App() {
         />
       );
     }
-    if (step === 'HIGHSCORES') return <HighscoresView onBack={() => setStep('TOPIC')} />;
+    if (step === 'HIGHSCORES') {
+      return (
+        <HighscoresView 
+          onBack={() => {
+            setStep('TOPIC');
+            // Clear out the submission data when returning to the menu
+            setSubmissionData({ id: null, earnedGems: 0 }); 
+          }} 
+          newSubmissionId={submissionData.id}
+          gemAmount={submissionData.earnedGems}
+        />
+      );
+    }
     if (step === 'INSTRUCTIONS') return <Instructions onBack={() => setStep('TOPIC')} />;
 
     // Shared wrapper for Gems and Title
@@ -190,7 +208,15 @@ export default function App() {
       </MenuWrapper>
     );
 
-    return <GameComponent settings={settings} setStep={setStep} user={user} userName={isGuest ? "Guest" : (user?.display_name || "Guest")} />;
+    return (
+      <GameComponent 
+        settings={settings} 
+        setStep={setStep} 
+        user={user} 
+        userName={isGuest ? "Guest" : (user?.displayName || "Guest")} 
+        onScoreSubmit={handleScoreSubmitted} 
+      />
+    );
   };
 
   const getBackground = () => {

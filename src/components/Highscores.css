@@ -304,6 +304,49 @@
   font-weight: bold;
 }
 
+/* Highlights the new row so the user easily spots it */
+.hs-new-row {
+  background-color: rgba(16, 185, 129, 0.15); /* Soft emerald green */
+  transition: background-color 2s ease-in-out;
+}
+
+/* Positions and animates the floating gem text */
+.gem-float-animation {
+  position: absolute;
+  top: -10px;
+  right: 10px;
+  color: #10b981;
+  font-weight: 900;
+  font-size: 1.1rem;
+  pointer-events: none;
+  text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
+  
+  /* Trigger the keyframe animation */
+  animation: floatUpAndFade 2.5s ease-out forwards;
+}
+
+@keyframes floatUpAndFade {
+  0% { 
+    opacity: 0; 
+    transform: translateY(15px) scale(0.8); 
+  }
+  15% { 
+    opacity: 1; 
+    transform: translateY(0px) scale(1.1); 
+  }
+  25% {
+    transform: translateY(0px) scale(1);
+  }
+  75% { 
+    opacity: 1; 
+    transform: translateY(-15px); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: translateY(-30px); 
+  }
+}
+
 
 /* --- MOBILE ADAPTATION FOR HIGHSCORES --- */
 @media (max-width: 1050px) {
