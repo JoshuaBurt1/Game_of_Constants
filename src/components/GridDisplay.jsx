@@ -6,7 +6,6 @@ const GridDisplay = ({
   boxSelections, setBoxSelections, SYMBOLS 
 }) => {
   
-  // Track the last item interacted with during a single drag to avoid flip-flop toggling
   const lastInteractedId = useRef(null);
 
   const expandedData = useMemo(() => {
@@ -43,14 +42,17 @@ const GridDisplay = ({
   const handleInteraction = (item) => {
     if (!item || item.isSymbol || item.token === " ") return;
     
-    // Safety check: Don't toggle the same cell twice in one drag session
+    // Prevent double-triggering the same cell in one drag movement
     if (lastInteractedId.current === item.stableId) return;
     lastInteractedId.current = item.stableId;
 
     const binaryKey = `${gridType}-${item.baseIdx}`;
 
     if (activeColor === 'BIN') {
-      setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
+      // Only update if not already binary to prevent render loops during drag
+      if (!binaryMaps[binaryKey]) {
+        setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
+      }
       return;
     }
     
@@ -63,11 +65,15 @@ const GridDisplay = ({
           return next;
         });
       } else {
-        setBinaryMaps(prev => ({ ...prev, [binaryKey]: false }));
+        // Only update if currently binary
+        if (binaryMaps[binaryKey] !== false) {
+          setBinaryMaps(prev => ({ ...prev, [binaryKey]: false }));
+        }
       }
       return;
     }
 
+    // Coloring Logic
     setSelections(prev => {
       const newMap = { ...prev };
       const currentGrid = { ...(newMap[gridType] || {}) };
@@ -77,15 +83,12 @@ const GridDisplay = ({
     });
   };
 
-  // --- TOUCH HANDLERS ---
   const handleTouchMove = (e) => {
     if (!isDragging) return;
 
-    // Identify the element currently under the user's finger
     const touch = e.touches[0];
     const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
 
-    // If the element is one of our grid tokens, extract data and interact
     if (targetEl && targetEl.dataset.stableId) {
       const itemData = {
         stableId: targetEl.dataset.stableId,
@@ -126,7 +129,6 @@ const GridDisplay = ({
             return (
               <div
                 key={`${item.stableId}-${i}`}
-                // Data attributes allow handleTouchMove to identify the cell
                 data-stable-id={item.stableId}
                 data-base-idx={item.baseIdx}
                 data-sub-idx={item.subIdx}
@@ -138,7 +140,8 @@ const GridDisplay = ({
                   shouldHide ? 'hidden' : '',
                   isBoxed ? 'boxed' : '',
                 ].join(' ')}
-                onMouseDown={() => {
+                // --- Desktop Mouse ---
+                onMouseDown={(e) => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
                     setIsDragging(true);
                     handleInteraction(item);
@@ -149,17 +152,20 @@ const GridDisplay = ({
                     handleInteraction(item);
                   }
                 }}
+                // --- Mobile Touch ---
                 onTouchStart={(e) => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
-                    // Prevent page scrolling while dragging on the grid
-                    if (e.cancelable) e.preventDefault();
+                    // Start drag and handle immediate interaction (tap)
                     setIsDragging(true);
                     handleInteraction(item);
+                    // Prevent default only if we want to block scrolling/zoom during interaction
+                    if (e.cancelable) e.preventDefault();
                   }
                 }}
                 style={{ 
                   backgroundColor: highlightColor || undefined,
-                  visibility: shouldHide ? 'hidden' : 'visible'
+                  visibility: shouldHide ? 'hidden' : 'visible',
+                  touchAction: 'none' // Critical: tells the browser not to handle swipes
                 }}
               >
                 {item.token}
