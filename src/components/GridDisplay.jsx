@@ -7,6 +7,8 @@ const GridDisplay = ({
 }) => {
   
   const lastInteractedId = useRef(null);
+  // Track touch metadata to differentiate Tap vs Drag
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
 
   const expandedData = useMemo(() => {
     if (!tokens) return [];
@@ -42,14 +44,13 @@ const GridDisplay = ({
   const handleInteraction = (item) => {
     if (!item || item.isSymbol || item.token === " ") return;
     
-    // Safety check: Don't toggle the same cell twice in one continuous drag
+    // Safety check: Don't toggle the same cell twice in one continuous movement
     if (lastInteractedId.current === item.stableId) return;
     lastInteractedId.current = item.stableId;
 
     const binaryKey = `${gridType}-${item.baseIdx}`;
 
     if (activeColor === 'BIN') {
-      // Prevent redundant state updates during a drag
       if (binaryMaps[binaryKey] !== true) {
         setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
       }
@@ -70,7 +71,6 @@ const GridDisplay = ({
       return;
     }
 
-    // Coloring logic
     setSelections(prev => {
       const newMap = { ...prev };
       const currentGrid = { ...(newMap[gridType] || {}) };
@@ -80,7 +80,23 @@ const GridDisplay = ({
     });
   };
 
-  // --- TOUCH HANDLERS ---
+  // --- TOUCH LOGIC ---
+
+  const onTouchStart = (e, item) => {
+    const touch = e.touches[0];
+    // Record starting position and time
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+      id: item.stableId
+    };
+    
+    lastInteractedId.current = null; // Reset to allow immediate interaction
+    setIsDragging(true);
+    handleInteraction(item);
+  };
+
   const handleTouchMove = (e) => {
     if (!isDragging) return;
 
@@ -99,7 +115,19 @@ const GridDisplay = ({
     }
   };
 
-  const stopDragging = () => {
+  const onTouchEnd = (e) => {
+    const touch = e.changedTouches[0];
+    const duration = Date.now() - touchStartRef.current.time;
+    const distX = Math.abs(touch.clientX - touchStartRef.current.x);
+    const distY = Math.abs(touch.clientY - touchStartRef.current.y);
+
+    // If it was a short duration and minimal movement, treat it as a clean "Tap"
+    if (duration < 250 && distX < 10 && distY < 10) {
+      // The interaction already fired on TouchStart, so we just clean up.
+      // If you find taps are "missing", you could re-trigger handleInteraction 
+      // here for the element at document.elementFromPoint.
+    }
+
     setIsDragging(false);
     lastInteractedId.current = null;
   };
@@ -107,11 +135,11 @@ const GridDisplay = ({
   return (
     <div 
       className="grid-root"
-      onMouseUp={stopDragging}
+      onMouseUp={stopDragging} 
       onMouseLeave={stopDragging}
-      onTouchEnd={stopDragging}
-      onTouchCancel={stopDragging}
       onTouchMove={handleTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
     >
       {rows.map((row, rIdx) => (
         <div key={rIdx} className="grid-row">
@@ -138,7 +166,7 @@ const GridDisplay = ({
                   shouldHide ? 'hidden' : '',
                   isBoxed ? 'boxed' : '',
                 ].join(' ')}
-                // --- MOUSE ---
+                // --- Desktop ---
                 onMouseDown={() => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
                     setIsDragging(true);
@@ -150,21 +178,19 @@ const GridDisplay = ({
                     handleInteraction(item);
                   }
                 }}
-                // --- TOUCH ---
-                onTouchStart={() => {
+                // --- Mobile ---
+                onTouchStart={(e) => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
-                    // Reset ref immediately to ensure the tap registers even if 
-                    // the last interaction was on this same ID
-                    lastInteractedId.current = null; 
-                    setIsDragging(true);
-                    handleInteraction(item);
+                    // Prevent context menus and scrolling
+                    if (e.cancelable) e.preventDefault(); 
+                    onTouchStart(e, item);
                   }
                 }}
                 style={{ 
                   backgroundColor: highlightColor || undefined,
                   visibility: shouldHide ? 'hidden' : 'visible',
-                  touchAction: 'none', // Prevents scrolling so dragging works
-                  userSelect: 'none',  // Prevents text selection popups on long press
+                  touchAction: 'none',
+                  userSelect: 'none',
                   WebkitUserSelect: 'none'
                 }}
               >
@@ -177,5 +203,7 @@ const GridDisplay = ({
     </div>
   );
 };
+
+const stopDragging = () => { /* Placeholder for prop-level or global cleanup */ };
 
 export default GridDisplay;
