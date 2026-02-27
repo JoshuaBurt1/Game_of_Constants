@@ -3,7 +3,8 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword 
+  signInWithEmailAndPassword,
+  updateProfile
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -16,6 +17,10 @@ export default function SignInView({ onAuthSuccess, onGuestSignage }) {
   const [name, setName] = useState('');
 
   const syncUserProfile = async (user, displayName) => {
+    if (displayName) {
+      await updateProfile(user, { displayName: displayName });
+    }
+
     const userRef = doc(db, 'users', user.uid);
     await setDoc(userRef, {
       display_name: displayName || user.displayName || 'Player',
@@ -36,6 +41,12 @@ export default function SignInView({ onAuthSuccess, onGuestSignage }) {
   };
 
   const handleEmailAuth = async () => {
+    // 3. ENFORCE NAME REQUIREMENT
+    if (isRegistering && !name.trim()) {
+      alert("Please enter a Player Name to register.");
+      return;
+    }
+
     try {
       let userCredential;
       if (isRegistering) {
