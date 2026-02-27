@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import './Highscores.css';
@@ -25,10 +25,12 @@ const renderStyledStat = (val, styledArr) => {
   return val; // Fallback for legacy scores
 };
 
-function HighscoresView({ onBack }) {
+function HighscoresView({ onBack, newSubmissionId, gemAmount }) {
   const [scores, setScores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedGrids, setExpandedGrids] = useState(new Set());
+  const [animateGems, setAnimateGems] = useState(false);
+  const newRowRef = useRef(null);
 
   const toggleGrid = (id) => {
     const newSet = new Set(expandedGrids);
@@ -44,16 +46,25 @@ function HighscoresView({ onBack }) {
         const querySnapshot = await getDocs(q);
         const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // REVERSE ALPHABETICAL SORT (Z-A)
         const sortedData = data.sort((a, b) => {
           const topicA = a.topic || ""; 
           const topicB = b.topic || "";
           if (topicA !== topicB) return topicB.localeCompare(topicA);
-          
           return (b.word || "").localeCompare(a.word || "");
         });
 
         setScores(sortedData);
+
+        // Logic for panning and gems
+        if (newSubmissionId) {
+          setTimeout(() => {
+            if (newRowRef.current) {
+              newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setAnimateGems(true);
+            }
+          }, 800); // Small delay to ensure table is rendered
+        }
+
       } catch (err) {
         console.error("Error fetching scores:", err);
       } finally {
@@ -61,7 +72,7 @@ function HighscoresView({ onBack }) {
       }
     };
     fetchScores();
-  }, []);
+  }, [newSubmissionId]);
 
   return (
     <div className="hs-view-container">
@@ -94,11 +105,12 @@ function HighscoresView({ onBack }) {
               <tbody>
                 {scores.map(s => {
                   const isExpanded = expandedGrids.has(s.id);
+                  const isNew = s.id === newSubmissionId;
                   // Constant style for vertical alignment
                   const cellStyle = { verticalAlign: 'top' };
 
                   return (
-                    <tr key={s.id} className="hs-row">
+                    <tr key={s.id} className={`hs-row ${isNew ? 'hs-new-row' : ''}`} ref={isNew ? newRowRef : null}>
                       <td className="hs-cell" style={{ ...cellStyle, fontSize: '0.75rem', color: '#888' }}>{s.topic}</td>
                       
                       <td className="hs-cell" style={cellStyle}>
@@ -368,14 +380,22 @@ function HighscoresView({ onBack }) {
                           })()}
                         </div>
                       </td>
-
-                      <td className="hs-cell" style={{ ...cellStyle, fontSize: '0.65rem', color: '#666' }}>
-                        {s.timestamp ? (
-                          <>
-                            <div>{s.timestamp.toDate().toLocaleDateString()}</div>
-                            <div style={{ opacity: 0.7 }}>{s.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                          </>
-                        ) : 'Recent'}
+                      <td className="hs-cell" style={{ ...cellStyle, fontSize: '0.65rem', color: '#666', position: 'relative' }}>
+                        <div className="hs-date-user-wrapper">
+                          <div className="hs-timestamp">
+                            {s.timestamp ? s.timestamp.toDate().toLocaleDateString() : 'Recent'}
+                          </div>
+                          <div className="hs-display_name">
+                            {s.display_name || "Anonymous"}
+                          </div>
+                          
+                          {/* Gem Animation Trigger */}
+                          {isNew && animateGems && (
+                            <div className="gem-float-animation">
+                              💎 +{gemAmount || 0}
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

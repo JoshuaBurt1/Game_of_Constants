@@ -18,32 +18,37 @@ export default function App() {
 
   // --- Auth & Firestore Sync ---
   useEffect(() => {
-    let unsubscribeGems = null;
+  let unsubscribeUserDoc = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        setStep('TOPIC');
+  const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+    if (currentUser) {
+      setUser(currentUser);
+      setStep('TOPIC');
 
-        // Listen for gem updates in Firestore
-        const userRef = doc(db, 'users', currentUser.uid);
-        unsubscribeGems = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setGems(docSnap.data().gems || 0);
-          }
-        });
-      } else {
-        setUser(null);
-        setGems(0);
-        if (unsubscribeGems) unsubscribeGems();
+      // Consolidated listener for Gems AND display_name
+      const userRef = doc(db, 'users', currentUser.uid);
+      unsubscribeUserDoc = onSnapshot(userRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setGems(data.gems || 0);
+          setUser(prev => (prev ? { ...prev, ...data } : prev)); 
+        }
+      });
+    } else {
+      setUser(null);
+      setGems(0);
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
+        unsubscribeUserDoc = null;
       }
-    });
+    }
+  });
 
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeGems) unsubscribeGems();
-    };
-  }, []);
+  return () => {
+    unsubscribeAuth();
+    if (unsubscribeUserDoc) unsubscribeUserDoc();
+  };
+}, []);
 
   const handleSignOut = () => {
     signOut(auth);
@@ -185,7 +190,7 @@ export default function App() {
       </MenuWrapper>
     );
 
-    return <GameComponent settings={settings} setStep={setStep} />;
+    return <GameComponent settings={settings} setStep={setStep} user={user} userName={isGuest ? "Guest" : (user?.display_name || "Guest")} />;
   };
 
   const getBackground = () => {

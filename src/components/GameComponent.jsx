@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
 import './GameComponent.css';
 
 // --- UTILS & COMPONENTS ---
@@ -17,8 +17,9 @@ import {
 import { getPermutations, getSquareShellData, getHexagonData } from '../utils/gridUtils';
 
 // --- GAME COMPONENT ---
-const GameComponent = ({ settings, setStep }) => {
+const GameComponent = ({ settings, setStep, user, userName }) => {
   const wordVal = ZODIAC_MAPS[settings.language][settings.word];
+  const userRef = user ? doc(db, 'users', user.uid) : null;  
 
   // 1. State
   const [selections, setSelections] = useState({});
@@ -388,10 +389,8 @@ const GameComponent = ({ settings, setStep }) => {
         "green_camel": { versions: [["2", "1", "9"]], color: "#10b981" }
       };
 
-      // Helper to setup empty stylable arrays
       const createStyled = (val) => String(val).split('').map(c => ({ char: c, color: null }));
 
-      // Structure updated to securely hold additive and grid data independently for proper digit rendering
       const styledData = {
         globalStats: {
           startingTotal: createStyled(aggregateStartingTotal),
@@ -422,7 +421,6 @@ const GameComponent = ({ settings, setStep }) => {
         gridStats: {}
       };
 
-      // Inject individual grid stats into styledData if in multi-grid mode
       if (isMultiGrid) {
         settings.gridTypes.forEach(type => {
           const gm = gridMetrics[type];
@@ -446,7 +444,6 @@ const GameComponent = ({ settings, setStep }) => {
 
       const pools = [];
 
-      // Factory utility to build completely separate highlight pools
       const addPool = (poolName, targetDataObj) => {
         if (!targetDataObj || Object.keys(targetDataObj).length === 0) return;
         pools.push({
@@ -454,7 +451,7 @@ const GameComponent = ({ settings, setStep }) => {
           get source() {
             return Object.values(targetDataObj)
               .flatMap(arr => arr)
-              .filter(sd => !sd.color) // Strictly enforces rule: cannot overwrite
+              .filter(sd => !sd.color) 
               .map(sd => sd.char)
               .join('');
           },
@@ -471,7 +468,6 @@ const GameComponent = ({ settings, setStep }) => {
         });
       };
 
-      // Add Digits Pool (Equation Block)
       pools.push({
         name: "digits",
         get source() {
@@ -488,7 +484,6 @@ const GameComponent = ({ settings, setStep }) => {
         }
       });
 
-      // Add ALL isolated separate pools based on instructions
       addPool("globalStats", styledData.globalStats);
       addPool("globalPercentages", styledData.globalPercentages);
 
@@ -513,7 +508,6 @@ const GameComponent = ({ settings, setStep }) => {
         });
       };
 
-      // MULTIPLIER (x2) LOOP UPDATE: Continues to check the same pool iteratively
       Object.entries(badgeTargets).forEach(([badgeKey, config]) => {
         for (const pool of pools) {
           let poolHasBadge = true;
@@ -523,22 +517,46 @@ const GameComponent = ({ settings, setStep }) => {
 
             for (const version of config.versions) {
               if (hasPermutation(pool.source, version)) {
-                badgeList.push(badgeKey); // Pushes multiples (x2) to the array naturally
+                badgeList.push(badgeKey);
                 version.forEach(targetChar => pool.applyStyle(targetChar, config.color));
                 awardedThisIteration = true;
-                break; // Breaks out of version search, but continues 'while' loop checking
+                break; 
               }
             }
 
             if (!awardedThisIteration) {
-              poolHasBadge = false; // Exits 'while' loop only when this specific pool is out of matching digits
+              poolHasBadge = false; 
             }
           }
         }
       });
 
-      // 5. Final Submission
+      // --- 4.5 NEW: Calculate Gems Earned ---
+      let totalGems = 0;
+      if (eqString !== "") {
+        const gemValues = {
+          "sigma": 10,
+          "gold": 15,
+          "gold2": 15,
+          "gold3": 15,
+          "blue_camel": 20,
+          "green_camel": 20
+        };
+
+        // Iterating through badgeList handles multiples gracefully 
+        // (e.g., getting "gold" twice awards 30 gems)
+        badgeList.forEach(badge => {
+          if (gemValues[badge]) {
+            totalGems += gemValues[badge];
+          }
+        });
+      }
+
+      // --- 5. Final Submission ---
       const highscoreData = {
+        userId: user?.uid || "Guest",
+        display_name: userName || "Guest", 
+        gemsEarned: totalGems,
         topic: settings.topic || "General",
         word: settings.word,
         originalValue: wordVal,
@@ -584,10 +602,26 @@ const GameComponent = ({ settings, setStep }) => {
         associatedEquation: eqString,
         equationMembers: originalSet ? originalSet.members : []
       };
+      
+      // --- NEW: Immediately update the user's gem count in Firebase ---
+      if (user?.uid) {
+        await addDoc(collection(db, "constants_highscores"), highscoreData);
+        
+        // 2. Only update the user document if userRef exists
+        if (totalGems > 0 && userRef) {
+          await updateDoc(userRef, {
+            gems: increment(totalGems)
+          });
+        }
+        alert("Score submitted successfully!");
+      } else {
+        // Guest Logic: Just log it and skip Firebase to avoid crashes
+        console.log("Guest mode: Score not saved to Firebase.");
+      }
 
-      await addDoc(collection(db, "constants_highscores"), highscoreData);
-      alert("Score submitted successfully!");
-      setStep('TOPIC');
+      // 3. Always move the user to the next screen, regardless of guest status
+      setStep('HIGHSCORES');
+
     } catch (e) {
       console.error("Error adding document: ", e);
       alert("Error submitting score.");

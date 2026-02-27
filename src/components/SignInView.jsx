@@ -20,7 +20,7 @@ export default function SignInView({ onAuthSuccess, onGuestSignage }) {
     await setDoc(userRef, {
       display_name: displayName || user.displayName || 'Player',
       last_login: serverTimestamp(),
-      gems: increment(0), // Ensures field exists without overwriting
+      gems: increment(0),
     }, { merge: true });
   };
 
@@ -51,16 +51,17 @@ export default function SignInView({ onAuthSuccess, onGuestSignage }) {
   };
 
   return (
-    <div className="home-menu-container">
+    /* We use a dynamic class to handle height changes when inputs appear */
+    <div className={`home-menu-container ${showEmailFields ? 'auth-mode' : ''}`}>
       <h2 className="home-menu-title">CONSTANTS</h2>
       
       {!showEmailFields ? (
-        <>
-          <button className="home-menu-btn" onClick={handleGoogleSignIn}>
+        <div className="auth-stack">
+          <button className="home-menu-btn google-btn" onClick={handleGoogleSignIn}>
             <img 
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
               alt="G" 
-              style={{ width: '18px', marginRight: '10px' }} 
+              className="google-icon"
             />
             Sign in with Google
           </button>
@@ -68,49 +69,56 @@ export default function SignInView({ onAuthSuccess, onGuestSignage }) {
           <button className="home-menu-btn" onClick={() => setShowEmailFields(true)}>
             Sign in with Email
           </button>
-        </>
+
+          <div className="home-menu-divider" />
+          
+          <button className="home-menu-btn guest-btn" onClick={onGuestSignage}>
+            Play as Guest
+          </button>
+        </div>
       ) : (
-        <div className="home-grid-layout" style={{ width: '100%', gap: '10px' }}>
-          {isRegistering && (
+        <div className="auth-form-wrapper">
+          <div className="auth-input-group">
+            {isRegistering && (
+              <input 
+                className="home-menu-input" 
+                type="text" 
+                placeholder="Player Name" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+              />
+            )}
             <input 
               className="home-menu-input" 
-              type="text" 
-              placeholder="Player Name" 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
+              type="email" 
+              placeholder="Email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
             />
-          )}
-          <input 
-            className="home-menu-input" 
-            type="email" 
-            placeholder="Email" 
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)} 
-          />
-          <input 
-            className="home-menu-input" 
-            type="password" 
-            placeholder="Password" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-          />
+            <input 
+              className="home-menu-input" 
+              type="password" 
+              placeholder="Password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+            />
+          </div>
           
-          <button className="home-confirm-btn" onClick={handleEmailAuth}>
+          <button className="home-confirm-btn auth-primary-btn" onClick={handleEmailAuth}>
             {isRegistering ? 'CREATE ACCOUNT' : 'LOGIN'}
           </button>
           
-          <p className="auth-toggle-text" style={{ cursor: 'pointer', color: '#aaa', fontSize: '0.8rem' }} onClick={() => setIsRegistering(!isRegistering)}>
-            {isRegistering ? "ALREADY HAVE AN ACCOUNT? LOGIN" : "NEW USER? REGISTER HERE"}
-          </p>
-          <button className="home-menu-btn" onClick={() => setShowEmailFields(false)}>Back</button>
+          <div className="auth-nav-group">
+            <p className="auth-toggle-text" onClick={() => setIsRegistering(!isRegistering)}>
+              {isRegistering ? "ALREADY HAVE AN ACCOUNT? LOGIN" : "NEW USER? REGISTER HERE"}
+            </p>
+
+            <button className="auth-back-btn" onClick={() => setShowEmailFields(false)}>
+              Back to Options
+            </button>
+          </div>
         </div>
       )}
-
-      <div className="home-menu-divider" />
-      
-      <button className="home-menu-btn" onClick={onGuestSignage}>
-        Play as Guest
-      </button>
     </div>
   );
 }

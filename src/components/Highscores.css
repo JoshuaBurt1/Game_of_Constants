@@ -284,6 +284,27 @@
 
 @keyframes hs-spin { 100% { transform: rotate(360deg); } }
 
+
+/* Layout for Name next to Date */
+.hs-date-user-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 90px;
+}
+
+.hs-timestamp {
+  font-size: 0.65rem;
+  color: #666;
+}
+
+.hs-display_name {
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+
 /* --- MOBILE ADAPTATION FOR HIGHSCORES --- */
 @media (max-width: 1050px) {
   /* 1. Container & Main Card Integration */
