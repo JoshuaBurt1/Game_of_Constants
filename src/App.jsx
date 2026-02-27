@@ -229,7 +229,9 @@ export default function App() {
       className={`home-app-wrapper ${step !== 'GAME' ? 'home-bg-active' : ''}`} 
       style={{ 
         backgroundImage: getBackground(),
-        justifyContent: step === 'GAME' ? 'center' : 'flex-start'
+        justifyContent: step === 'GAME' ? 'center' : 'flex-start',
+        WebkitTapHighlightColor: 'transparent', 
+        touchAction: 'manipulation'
       }}
     >
       {renderStep()}

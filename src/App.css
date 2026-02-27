@@ -1,4 +1,9 @@
 /* --- 1. Global Reset & Theme --- */
+* {
+  /* This removes the blue highlight on mobile Chrome/Safari */
+  -webkit-tap-highlight-color: transparent;
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -62,11 +67,6 @@ body, #root {
   box-shadow: 0 10px 40px rgba(0,0,0,0.6);
   box-sizing: border-box;
   transition: all 0.3s ease;
-}
-
-/* Specific mode for expanded Login/Register forms */
-.home-menu-container.auth-mode {
-  /* Removed min-height to strictly obey the aspect-ratio */
 }
 
 /* Legacy menu container for other views */

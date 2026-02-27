@@ -37,23 +37,19 @@
   padding-left: 140px; 
 }
 
-.hs-menu-btn {
-  width: auto;
-  min-width: 140px; 
-  margin: 0;
-}
-
+/* Scroll Container - Added padding-bottom to fix cutoff */
 .hs-table-scroll {
   max-height: 600px;
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 5px;
+  padding-bottom: 40px; /* Added: Extra space so the last row isn't flush */
   scrollbar-width: thin;
   scrollbar-color: #444 #222;
+  -webkit-overflow-scrolling: touch;
 }
 
 .hs-menu-btn {
-  /* Reduced width from 85% to auto/fixed for a cleaner look */
   width: auto;
   min-width: 140px; 
   margin: 6px 0;
@@ -74,10 +70,12 @@
   color: #fff;
   border-color: rgba(255, 255, 255, 0.2);
 }
+
 /* Table Styling */
 .hs-table {
   width: 100%;
   border-collapse: collapse;
+  margin-bottom: 20px; /* Added: Extra buffer for the last row */
 }
 
 .hs-table thead {
@@ -246,23 +244,16 @@
 
 /* Animations */
 .loading-box {
-  /* Match home-menu-container background & glass effect */
   background: rgba(15, 15, 15, 0.8);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px); /* Safari support */
-  
-  /* Border & Glow */
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  
-  /* Sizing & Shape */
   width: 90%;
   max-width: 450px;
   aspect-ratio: 1 / 1;
   box-sizing: border-box;
-  
-  /* Centering Logic */
   margin: 40px auto;
   margin-top: -20px;
   display: flex;
@@ -272,7 +263,6 @@
   padding: 30px;
 }
 
-/* Ensure the spinner looks good against the new glass background */
 .pulse-spinner {
   width: 40px;
   height: 40px;
@@ -284,8 +274,6 @@
 
 @keyframes hs-spin { 100% { transform: rotate(360deg); } }
 
-
-/* Layout for Name next to Date */
 .hs-date-user-wrapper {
   display: flex;
   flex-direction: column;
@@ -304,13 +292,11 @@
   font-weight: bold;
 }
 
-/* Highlights the new row so the user easily spots it */
 .hs-new-row {
-  background-color: rgba(16, 185, 129, 0.15); /* Soft emerald green */
+  background-color: rgba(16, 185, 129, 0.15); 
   transition: background-color 2s ease-in-out;
 }
 
-/* Positions and animates the floating gem text */
 .gem-float-animation {
   position: absolute;
   top: -10px;
@@ -320,37 +306,19 @@
   font-size: 1.1rem;
   pointer-events: none;
   text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
-  
-  /* Trigger the keyframe animation */
   animation: floatUpAndFade 2.5s ease-out forwards;
 }
 
 @keyframes floatUpAndFade {
-  0% { 
-    opacity: 0; 
-    transform: translateY(15px) scale(0.8); 
-  }
-  15% { 
-    opacity: 1; 
-    transform: translateY(0px) scale(1.1); 
-  }
-  25% {
-    transform: translateY(0px) scale(1);
-  }
-  75% { 
-    opacity: 1; 
-    transform: translateY(-15px); 
-  }
-  100% { 
-    opacity: 0; 
-    transform: translateY(-30px); 
-  }
+  0% { opacity: 0; transform: translateY(15px) scale(0.8); }
+  15% { opacity: 1; transform: translateY(0px) scale(1.1); }
+  25% { transform: translateY(0px) scale(1); }
+  75% { opacity: 1; transform: translateY(-15px); }
+  100% { opacity: 0; transform: translateY(-30px); }
 }
-
 
 /* --- MOBILE ADAPTATION FOR HIGHSCORES --- */
 @media (max-width: 1050px) {
-  /* 1. Container & Main Card Integration */
   .hs-view-container {
     padding-top: 20px;
     padding-left: 0;
@@ -388,15 +356,16 @@
     margin: 0 auto;
   }
 
-  /* 2. Seamless Scroll Area */
+  .hs-table {
+    margin-bottom: 100px;
+  }
+
   .hs-table-scroll {
     max-height: 85vh; 
     overflow-y: scroll; 
-    scrollbar-width: thin;
-    scrollbar-color: #444 #000;
+    padding-bottom: 120px;
   }
 
-  /* 3. Row & Multi-Column Layout */
   .hs-table, .hs-table tbody, .hs-row {
     display: block;
     width: 100%;
@@ -426,11 +395,10 @@
     background: transparent;
   }
 
-  /* The Labels (Headers) */
   .hs-cell::before {
     display: block;
     font-size: 0.55rem;
-    color: #555; /* Dimmer labels */
+    color: #555; 
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -448,17 +416,14 @@
   .hs-cell:nth-of-type(8)::before { content: "Badges"; }
   .hs-cell:nth-of-type(9)::before { content: "Date"; }
 
-  /* Grid Layout Widths (3-1-2-1-2) */
   .hs-cell:nth-of-type(1), .hs-cell:nth-of-type(2), .hs-cell:nth-of-type(3) { width: 33.33%; }
   .hs-cell:nth-of-type(4) { width: 100%; border-right: none; }
   .hs-cell:nth-of-type(5), .hs-cell:nth-of-type(6) { width: 50%; }
   .hs-cell:nth-of-type(7) { width: 100%; border-right: none; }
   .hs-cell:nth-of-type(8), .hs-cell:nth-of-type(9) { width: 50%; border-bottom: none; }
 
-  /* Clean up right borders for end-of-row cells */
   .hs-cell:nth-of-type(3), .hs-cell:nth-of-type(6), .hs-cell:nth-of-type(9) { border-right: none; }
 
-  /* 4. Formatting Adjustments */
   .hs-stats-row, .hs-grids-row {
     display: flex;
     flex-direction: row;
@@ -477,7 +442,6 @@
     padding-top: 0;
   }
 
-  /* Ensure long lists don't break the layout */
   .hs-monospace-list {
     font-size: 0.6rem;
     max-width: 100%;
@@ -487,10 +451,5 @@
   
   .hs-unused-list {
     max-width: 100%;
-  }
-
-  .hs-new-row {
-    background-color: rgba(16, 185, 129, 0.15); /* Soft emerald green */
-    transition: background-color 2s ease-in-out;
   }
 }
