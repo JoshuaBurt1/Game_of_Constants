@@ -43,27 +43,28 @@ const GridDisplay = ({
   const handleInteraction = (item) => {
     if (!item || item.isSymbol || item.token === " ") return;
     
-    // Safety check: Don't flip-flop the same cell during a single drag movement
-    if (lastInteractedId.current === item.stableId) return;
-    lastInteractedId.current = item.stableId;
+    // 1. Check if we're hitting the exact same sub-item again in one go
+    const interactionId = `${gridType}-${item.baseIdx}-${item.subIdx}`;
+    if (lastInteractedId.current === interactionId) return;
+    lastInteractedId.current = interactionId;
 
     const binaryKey = `${gridType}-${item.baseIdx}`;
 
-    // BIN mode: Set to binary if it isn't already
     if (activeColor === 'BIN') {
+      // Only update if it's currently NOT binary
       if (!binaryMaps[binaryKey]) {
         setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
       }
       return;
     }
     
-    // DEC mode: Set to decimal OR toggle boxes
     if (activeColor === 'DEC') {
       if (item.isBinary) {
         const boxKey = `${gridType}-${item.baseIdx}-${item.subIdx}`;
         setBoxSelections(prev => {
           const next = { ...prev };
-          next[boxKey] ? delete next[boxKey] : (next[boxKey] = item.token);
+          if (next[boxKey]) delete next[boxKey];
+          else next[boxKey] = item.token;
           return next;
         });
       } else if (binaryMaps[binaryKey] !== false) {
@@ -72,19 +73,23 @@ const GridDisplay = ({
       return;
     }
 
-    // Coloring mode: Standard toggle
+    // Coloring mode: Only update if the color is actually changing
     setSelections(prev => {
-      const newMap = { ...prev };
-      const currentGrid = { ...(newMap[gridType] || {}) };
-      currentGrid[item.stableId] = currentGrid[item.stableId] === activeColor ? null : activeColor;
-      newMap[gridType] = currentGrid;
-      return newMap;
+      const currentGrid = prev[gridType] || {};
+      if (currentGrid[item.stableId] === activeColor) {
+        // Optional: Toggle off if clicking the same color
+        const newGrid = { ...currentGrid, [item.stableId]: null };
+        return { ...prev, [gridType]: newGrid };
+      }
+      const newGrid = { ...currentGrid, [item.stableId]: activeColor };
+      return { ...prev, [gridType]: newGrid };
     });
   };
 
   // --- MOBILE TOUCH HANDLING ---
 
   const handleTouchStart = (e, item) => {
+    // Record touch start for drag/tap distance logic
     const touch = e.touches[0];
     touchStartRef.current = {
       x: touch.clientX,
@@ -92,7 +97,9 @@ const GridDisplay = ({
       time: Date.now()
     };
     
-    lastInteractedId.current = null; // Prepare for fresh interaction
+    // Clear the ref so this specific tap is ALWAYS processed
+    lastInteractedId.current = null; 
+    
     setIsDragging(true);
     handleInteraction(item);
   };
