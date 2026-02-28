@@ -8,9 +8,10 @@ const GridDisplay = ({
   
   const lastInteractedId = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
-  
-  // NEW: Tracks whether the current continuous drag/tap is meant to paint or erase
   const dragModeRef = useRef(null); 
+  
+  // NEW: Flag to prevent mobile "Ghost Clicks"
+  const isTouchRef = useRef(false);
 
   const expandedData = useMemo(() => {
     if (!tokens) return [];
@@ -43,7 +44,6 @@ const GridDisplay = ({
     }, [[]]);
   }, [expandedData]);
 
-  // NEW: Added isStart parameter to determine if we need to lock in a paint/erase mode
   const handleInteraction = (item, isStart = false) => {
     if (!item || item.isSymbol || item.token === " ") return;
     
@@ -65,8 +65,19 @@ const GridDisplay = ({
         const boxKey = `${gridType}-${item.baseIdx}-${item.subIdx}`;
         setBoxSelections(prev => {
           const next = { ...prev };
-          if (next[boxKey]) delete next[boxKey];
-          else next[boxKey] = item.token;
+          const isCurrentlyActive = !!next[boxKey];
+
+          // NEW: Apply paint/erase lock for DEC mode
+          if (isStart) {
+            dragModeRef.current = isCurrentlyActive ? 'erase' : 'paint';
+          }
+
+          if (dragModeRef.current === 'erase' && isCurrentlyActive) {
+            delete next[boxKey];
+          } else if (dragModeRef.current === 'paint' && !isCurrentlyActive) {
+            next[boxKey] = item.token;
+          }
+          
           return next;
         });
       } else if (binaryMaps[binaryKey] !== false) {
@@ -75,17 +86,14 @@ const GridDisplay = ({
       return;
     }
 
-    // REWRITTEN: Coloring mode now respects the locked-in dragModeRef
     setSelections(prev => {
       const currentGrid = prev[gridType] || {};
       const isCurrentlyActive = currentGrid[item.stableId] === activeColor;
 
-      // If this is the initial tap/click, lock in the opposite of the current state
       if (isStart) {
         dragModeRef.current = isCurrentlyActive ? 'erase' : 'paint';
       }
 
-      // Apply the mode
       if (dragModeRef.current === 'erase') {
         if (isCurrentlyActive) {
           return { ...prev, [gridType]: { ...currentGrid, [item.stableId]: null } };
@@ -96,14 +104,14 @@ const GridDisplay = ({
         }
       }
 
-      return prev; // No change needed if it already matches the mode
+      return prev; 
     });
   };
 
   // --- MOBILE TOUCH HANDLING ---
 
   const handleTouchStart = (e, item) => {
-    if (e.cancelable) e.preventDefault(); // Moved here to ensure OS gestures are blocked immediately
+    if (e.cancelable) e.preventDefault(); 
 
     const touch = e.touches[0];
     touchStartRef.current = {
@@ -114,7 +122,7 @@ const GridDisplay = ({
     
     lastInteractedId.current = null; 
     setIsDragging(true);
-    handleInteraction(item, true); // true = This is the start of an interaction
+    handleInteraction(item, true); 
   };
 
   const handleTouchMove = (e) => {
@@ -131,14 +139,14 @@ const GridDisplay = ({
         isBinary: targetEl.dataset.isBinary === 'true',
         token: targetEl.innerText
       };
-      handleInteraction(itemData, false); // false = We are continuing a drag, don't change modes
+      handleInteraction(itemData, false); 
     }
   };
 
   const handleTouchEnd = () => {
     setIsDragging(false);
     lastInteractedId.current = null;
-    dragModeRef.current = null; // Clear the mode
+    dragModeRef.current = null; 
   };
 
   return (
@@ -149,7 +157,6 @@ const GridDisplay = ({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      // NEW: Apply structural touch locks to the parent container
       style={{ touchAction: 'none', overscrollBehavior: 'none' }}
     >
       {rows.map((row, rIdx) => (
@@ -178,20 +185,23 @@ const GridDisplay = ({
                   isBoxed ? 'boxed' : '',
                 ].join(' ')}
                 // --- Desktop Mouse ---
-                onMouseDown={() => {
+                onMouseDown={(e) => {
+                  if (isTouchRef.current) return; // Prevent ghost click
                   if (!isSymStyle && !shouldHide && !isSpacer) {
                     setIsDragging(true);
                     lastInteractedId.current = null;
-                    handleInteraction(item, true); // true = Initial click locks the mode
+                    handleInteraction(item, true); 
                   }
                 }}
-                onMouseEnter={() => {
+                onMouseEnter={(e) => {
+                  if (isTouchRef.current) return; // Prevent ghost click
                   if (isDragging && !isSymStyle && !shouldHide && !isSpacer) {
-                    handleInteraction(item, false); // false = Continuing drag
+                    handleInteraction(item, false); 
                   }
                 }}
                 // --- Mobile Touch ---
                 onTouchStart={(e) => {
+                  isTouchRef.current = true; // Tell the app to ignore mouse events
                   if (!isSymStyle && !shouldHide && !isSpacer) {
                     handleTouchStart(e, item);
                   }
