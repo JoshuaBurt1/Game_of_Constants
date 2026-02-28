@@ -8,6 +8,9 @@ const GridDisplay = ({
   
   const lastInteractedId = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+  
+  // NEW: Tracks whether the current continuous drag/tap is meant to paint or erase
+  const dragModeRef = useRef(null); 
 
   const expandedData = useMemo(() => {
     if (!tokens) return [];
@@ -40,10 +43,10 @@ const GridDisplay = ({
     }, [[]]);
   }, [expandedData]);
 
-  const handleInteraction = (item) => {
+  // NEW: Added isStart parameter to determine if we need to lock in a paint/erase mode
+  const handleInteraction = (item, isStart = false) => {
     if (!item || item.isSymbol || item.token === " ") return;
     
-    // 1. Check if we're hitting the exact same sub-item again in one go
     const interactionId = `${gridType}-${item.baseIdx}-${item.subIdx}`;
     if (lastInteractedId.current === interactionId) return;
     lastInteractedId.current = interactionId;
@@ -51,7 +54,6 @@ const GridDisplay = ({
     const binaryKey = `${gridType}-${item.baseIdx}`;
 
     if (activeColor === 'BIN') {
-      // Only update if it's currently NOT binary
       if (!binaryMaps[binaryKey]) {
         setBinaryMaps(prev => ({ ...prev, [binaryKey]: true }));
       }
@@ -73,23 +75,36 @@ const GridDisplay = ({
       return;
     }
 
-    // Coloring mode: Only update if the color is actually changing
+    // REWRITTEN: Coloring mode now respects the locked-in dragModeRef
     setSelections(prev => {
       const currentGrid = prev[gridType] || {};
-      if (currentGrid[item.stableId] === activeColor) {
-        // Optional: Toggle off if clicking the same color
-        const newGrid = { ...currentGrid, [item.stableId]: null };
-        return { ...prev, [gridType]: newGrid };
+      const isCurrentlyActive = currentGrid[item.stableId] === activeColor;
+
+      // If this is the initial tap/click, lock in the opposite of the current state
+      if (isStart) {
+        dragModeRef.current = isCurrentlyActive ? 'erase' : 'paint';
       }
-      const newGrid = { ...currentGrid, [item.stableId]: activeColor };
-      return { ...prev, [gridType]: newGrid };
+
+      // Apply the mode
+      if (dragModeRef.current === 'erase') {
+        if (isCurrentlyActive) {
+          return { ...prev, [gridType]: { ...currentGrid, [item.stableId]: null } };
+        }
+      } else if (dragModeRef.current === 'paint') {
+        if (!isCurrentlyActive) {
+          return { ...prev, [gridType]: { ...currentGrid, [item.stableId]: activeColor } };
+        }
+      }
+
+      return prev; // No change needed if it already matches the mode
     });
   };
 
   // --- MOBILE TOUCH HANDLING ---
 
   const handleTouchStart = (e, item) => {
-    // Record touch start for drag/tap distance logic
+    if (e.cancelable) e.preventDefault(); // Moved here to ensure OS gestures are blocked immediately
+
     const touch = e.touches[0];
     touchStartRef.current = {
       x: touch.clientX,
@@ -97,11 +112,9 @@ const GridDisplay = ({
       time: Date.now()
     };
     
-    // Clear the ref so this specific tap is ALWAYS processed
     lastInteractedId.current = null; 
-    
     setIsDragging(true);
-    handleInteraction(item);
+    handleInteraction(item, true); // true = This is the start of an interaction
   };
 
   const handleTouchMove = (e) => {
@@ -110,7 +123,6 @@ const GridDisplay = ({
     const touch = e.touches[0];
     const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
 
-    // Ensure we are hovering over an actual token cell
     if (targetEl && targetEl.dataset.stableId) {
       const itemData = {
         stableId: targetEl.dataset.stableId,
@@ -119,13 +131,14 @@ const GridDisplay = ({
         isBinary: targetEl.dataset.isBinary === 'true',
         token: targetEl.innerText
       };
-      handleInteraction(itemData);
+      handleInteraction(itemData, false); // false = We are continuing a drag, don't change modes
     }
   };
 
   const handleTouchEnd = () => {
     setIsDragging(false);
     lastInteractedId.current = null;
+    dragModeRef.current = null; // Clear the mode
   };
 
   return (
@@ -136,6 +149,8 @@ const GridDisplay = ({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
+      // NEW: Apply structural touch locks to the parent container
+      style={{ touchAction: 'none', overscrollBehavior: 'none' }}
     >
       {rows.map((row, rIdx) => (
         <div key={rIdx} className="grid-row">
@@ -166,27 +181,26 @@ const GridDisplay = ({
                 onMouseDown={() => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
                     setIsDragging(true);
-                    handleInteraction(item);
+                    lastInteractedId.current = null;
+                    handleInteraction(item, true); // true = Initial click locks the mode
                   }
                 }}
                 onMouseEnter={() => {
                   if (isDragging && !isSymStyle && !shouldHide && !isSpacer) {
-                    handleInteraction(item);
+                    handleInteraction(item, false); // false = Continuing drag
                   }
                 }}
                 // --- Mobile Touch ---
                 onTouchStart={(e) => {
                   if (!isSymStyle && !shouldHide && !isSpacer) {
-                    // Critical: Prevents the "magnifying glass" and scroll while painting
-                    if (e.cancelable) e.preventDefault();
                     handleTouchStart(e, item);
                   }
                 }}
                 style={{ 
                   backgroundColor: highlightColor || undefined,
                   visibility: shouldHide ? 'hidden' : 'visible',
-                  touchAction: 'none', // Prevents browser scroll/zoom gestures
-                  userSelect: 'none',  // Prevents long-press copy/paste UI
+                  touchAction: 'none', 
+                  userSelect: 'none',  
                   WebkitUserSelect: 'none'
                 }}
               >
